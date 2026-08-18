@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <title>纪念市杂谈</title>
     <style>
-        /* ===== 全局重置 ===== */
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             min-height: 100vh;
@@ -18,20 +17,6 @@
             padding: 12px;
             margin: 0;
         }
-        /* 版本号水印（用于确认更新） */
-        #version-tag {
-            position: fixed;
-            top: 8px;
-            right: 12px;
-            color: rgba(255,255,255,0.15);
-            font-size: 12px;
-            z-index: 999;
-            pointer-events: none;
-            background: rgba(0,0,0,0.3);
-            padding: 2px 10px;
-            border-radius: 12px;
-        }
-        /* ===== 星星画布 ===== */
         #starCanvas {
             position: fixed;
             top: 0;
@@ -41,7 +26,6 @@
             pointer-events: none;
             z-index: 0;
         }
-        /* ===== 主卡片 ===== */
         .card {
             position: relative;
             display: flex;
@@ -57,7 +41,6 @@
             aspect-ratio: auto;
             margin: 0 auto;
         }
-        /* ===== 左侧舞台 (4:3) ===== */
         .stage {
             position: relative;
             flex: 1;
@@ -86,7 +69,6 @@
             background: linear-gradient(135deg, rgba(20,20,50,0.15) 0%, rgba(0,0,0,0.30) 100%);
             z-index: 0;
         }
-        /* ===== 弹幕层 ===== */
         .danmaku-layer {
             position: absolute;
             inset: 0;
@@ -117,7 +99,6 @@
             90% { opacity: 1; }
             100% { transform: translateX(-120vw); opacity: 0; }
         }
-        /* ===== 状态角标 ===== */
         .status-overlay {
             position: absolute;
             top: 12px;
@@ -174,7 +155,6 @@
             gap: 4px;
         }
         .refresh-btn:hover { background: rgba(255,255,255,0.12); }
-        /* ===== 右侧聊天区 ===== */
         .chat-panel {
             width: 260px;
             min-width: 200px;
@@ -189,7 +169,6 @@
             position: relative;
             transition: width 0.2s ease;
         }
-        /* ===== 昵称提示 ===== */
         .name-hint {
             padding: 4px 12px;
             background: rgba(255,215,0,0.08);
@@ -208,7 +187,6 @@
             80% { opacity: 1; transform: translateY(0); }
             100% { opacity: 0; transform: translateY(-4px); }
         }
-        /* ===== 音乐播放器 ===== */
         .music-player {
             padding: 6px 12px;
             border-bottom: 1px solid rgba(255,255,255,0.05);
@@ -274,7 +252,6 @@
             animation: pulse-dot 1.5s ease-in-out infinite;
         }
         .music-player .status-dot.paused { background: #888; animation: none; }
-        /* ===== 聊天头 ===== */
         .chat-header {
             padding: 4px 12px;
             border-bottom: 1px solid rgba(255,255,255,0.04);
@@ -299,7 +276,6 @@
         .chat-header .nickname-area .avatar { font-size: 14px; }
         .chat-header .nickname-area .name { color: #fff; max-width: 60px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .chat-header .online-status { font-weight:400; font-size:10px; color:#2ecc71; display:flex; align-items:center; gap:3px; }
-        /* ===== 聊天消息 ===== */
         .chat-messages {
             flex: 1;
             overflow-y: auto;
@@ -329,7 +305,6 @@
         .msg-item .content { flex:1; }
         .msg-item.is-other .name { color:#7EC8E3; }
         @keyframes msgFade { 0% { opacity:0; transform:translateY(10px); } 100% { opacity:1; transform:translateY(0); } }
-        /* ===== 输入区 ===== */
         .chat-input-area {
             padding: 6px 10px 10px 10px;
             border-top: 1px solid rgba(255,255,255,0.04);
@@ -365,28 +340,6 @@
             cursor: pointer;
             white-space: nowrap;
         }
-        /* ===== Toast ===== */
-        .toast {
-            position: fixed;
-            bottom: 100px;
-            left: 50%;
-            transform: translateX(-50%) translateY(20px);
-            background: rgba(0,0,0,0.85);
-            backdrop-filter: blur(14px);
-            color: #fff;
-            padding: 8px 24px;
-            border-radius: 50px;
-            font-size: 13px;
-            font-weight: 500;
-            z-index: 999;
-            opacity: 0;
-            transition: all 0.4s ease;
-            pointer-events: none;
-            border: 1px solid rgba(255,255,255,0.06);
-            white-space: nowrap;
-        }
-        .toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
-        /* ===== 音乐遮罩 ===== */
         .music-overlay {
             position: absolute;
             top: 0;
@@ -431,7 +384,26 @@
         }
         .music-overlay .play-btn-big:hover { transform: scale(1.05); }
         .music-overlay .play-btn-big:active { transform: scale(0.95); }
-        /* ===== 响应式 ===== */
+        .toast {
+            position: fixed;
+            bottom: 100px;
+            left: 50%;
+            transform: translateX(-50%) translateY(20px);
+            background: rgba(0,0,0,0.85);
+            backdrop-filter: blur(14px);
+            color: #fff;
+            padding: 8px 24px;
+            border-radius: 50px;
+            font-size: 13px;
+            font-weight: 500;
+            z-index: 999;
+            opacity: 0;
+            transition: all 0.4s ease;
+            pointer-events: none;
+            border: 1px solid rgba(255,255,255,0.06);
+            white-space: nowrap;
+        }
+        .toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
         @media (max-width: 820px) {
             body { padding: 0; align-items: stretch; }
             .card { flex-direction: column; max-height: 100vh; width: 100vw; border-radius: 0; max-width: none; margin: 0; }
@@ -475,13 +447,9 @@
 </head>
 <body>
 
-    <!-- 版本号水印（用于确认更新） -->
-    <div id="version-tag">v2.0.1 · 有遮罩</div>
-
     <canvas id="starCanvas"></canvas>
 
     <div class="card" id="card">
-        <!-- 左侧舞台 -->
         <div class="stage" id="stage">
             <div class="bg-layer" id="bgLayer"></div>
             <div class="danmaku-layer" id="danmakuLayer"></div>
@@ -491,8 +459,6 @@
                 <div class="badge">📷 双击换图</div>
             </div>
             <button class="refresh-btn" id="refreshBtn">🔄 刷新弹幕</button>
-
-            <!-- 音乐遮罩层 -->
             <div class="music-overlay" id="musicOverlay">
                 <div class="icon">🎵</div>
                 <div>点击播放音乐</div>
@@ -501,7 +467,6 @@
             </div>
         </div>
 
-        <!-- 右侧聊天区 -->
         <div class="chat-panel" id="chatPanel">
             <div class="name-hint" id="nameHint">
                 <span class="icon">💡</span> 点击昵称可修改名字
@@ -539,17 +504,24 @@
 
     <script>
         // ============================================================
-        //  🚀 完整脚本 - 带音乐遮罩，版本 v2.0.1
+        //  🔵 跨设备实时聊天 - 使用 jsonbin.io + CORS 代理
+        //  BIN_ID: 6a841b66da38895dfef1f2b0
         // ============================================================
+        const BIN_ID = '6a841b66da38895dfef1f2b0';
+        const PROXY = 'https://api.allorigins.win/raw?url=';
+        const BIN_URL = `https://api.jsonbin.io/v3/b/${BIN_ID}`;
+        // 读取和写入都使用代理
+        const PROXY_URL = PROXY + encodeURIComponent(BIN_URL);
+
         (function() {
             'use strict';
 
-            console.log('🚀 脚本加载开始... (v2.0.1)');
+            console.log('🚀 脚本加载开始...');
 
             function init() {
                 console.log('📌 DOM 就绪，开始初始化...');
 
-                // ===== DOM 引用 =====
+                // DOM 引用
                 const bgLayer = document.getElementById('bgLayer');
                 const danmakuLayer = document.getElementById('danmakuLayer');
                 const chatMessages = document.getElementById('chatMessages');
@@ -569,9 +541,8 @@
                 const musicOverlay = document.getElementById('musicOverlay');
                 const bigPlayBtn = document.getElementById('bigPlayBtn');
 
-                // 检查关键元素
                 if (!chatSendBtn || !playBtn) {
-                    console.error('❌ 关键元素缺失，请检查 HTML');
+                    console.error('❌ 关键元素缺失');
                     return;
                 }
                 console.log('✅ DOM 引用成功');
@@ -580,7 +551,7 @@
                 const MUSIC_URL = 'https://cdn.jsdelivr.net/gh/Mizii1208/After-all/After%20All.mp3';
                 const MAX_DANMAKU = 80;
                 const MAX_HISTORY = 150;
-                const STORAGE_KEY = 'chat_history_local';
+                const STORAGE_KEY = 'chat_history_cloud';
                 const USER_KEY = 'user_info_local';
                 const DEFAULT_BG = 'https://cdn.jsdelivr.net/gh/Mizii1208/-2026-/446dc1f2599abf8cd4f69b60617b86ee.jpg';
                 const COLORS = ['#FFD700','#FFC107','#FFB300','#FDD835','#FFEE58','#FFF176','#9B59B6','#8E44AD','#A855F7','#7C3AED','#6D28D9','#9333EA'];
@@ -598,24 +569,8 @@
                 function updateNicknameUI() { myAvatarSpan.textContent = myAvatar; myNameSpan.textContent = myName; }
                 updateNicknameUI();
 
-                // ===== 本地存储 =====
-                function loadLocalHistory() {
-                    try {
-                        const data = localStorage.getItem(STORAGE_KEY);
-                        if (data) {
-                            const msgs = JSON.parse(data);
-                            if (Array.isArray(msgs)) return msgs.slice(-MAX_HISTORY);
-                        }
-                    } catch(_) {}
-                    return [];
-                }
-                function saveLocalHistory(msgs) {
-                    try {
-                        const sliced = msgs.slice(-MAX_HISTORY);
-                        localStorage.setItem(STORAGE_KEY, JSON.stringify(sliced));
-                    } catch(_) {}
-                }
-                let chatMessagesData = loadLocalHistory();
+                // ===== 本地缓存 =====
+                let chatMessagesData = [];
 
                 // ===== 弹幕管理 =====
                 let danmakuCount = 0;
@@ -663,6 +618,62 @@
                     chatMessages.scrollTop = chatMessages.scrollHeight;
                 }
 
+                // ===== 云端读写（全部通过代理） =====
+                function loadFromCloud() {
+                    fetch(PROXY_URL)
+                        .then(res => {
+                            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                            return res.json();
+                        })
+                        .then(data => {
+                            console.log('📥 云端数据:', data);
+                            let messages = null;
+                            if (data && data.record && Array.isArray(data.record.messages)) {
+                                messages = data.record.messages;
+                            } else if (data && Array.isArray(data.messages)) {
+                                messages = data.messages;
+                            }
+                            if (messages) {
+                                const localIds = new Set(chatMessagesData.map(m => m.id));
+                                let added = 0;
+                                for (const msg of messages) {
+                                    if (!localIds.has(msg.id)) {
+                                        msg.isOther = true;
+                                        msg.isMe = false;
+                                        chatMessagesData.push(msg);
+                                        renderChatMessage(msg);
+                                        renderDanmaku(msg.text, true);
+                                        added++;
+                                    }
+                                }
+                                if (added > 0) {
+                                    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(chatMessagesData)); } catch(e) {}
+                                    showToast(`✅ 同步了 ${added} 条新消息`, 2000);
+                                }
+                            }
+                        })
+                        .catch(err => console.warn('读取云端失败:', err));
+                }
+
+                function writeToCloud(data) {
+                    fetch(PROXY_URL, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ messages: data })
+                    })
+                    .then(res => {
+                        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                        return res.json();
+                    })
+                    .then(() => {
+                        showToast('✅ 消息已保存到云端', 1500);
+                    })
+                    .catch(err => {
+                        console.error('写入云端失败:', err);
+                        showToast('⚠️ 保存失败，请检查网络', 2000);
+                    });
+                }
+
                 // ===== 添加消息 =====
                 function addMessage(text, isOther = false, senderName = null, senderAvatar = null, timestamp = null) {
                     if (!text || text.trim() === '') return false;
@@ -673,17 +684,21 @@
                     const isMe = !isOther;
                     const msgObj = { id: `${time}_${Math.random().toString(36).substr(2,4)}`, text, name, avatar, isOther, isMe, time };
                     chatMessagesData.push(msgObj);
-                    saveLocalHistory(chatMessagesData);
                     renderChatMessage(msgObj);
                     if (isMe) renderDanmaku(text, false);
                     else renderDanmaku(text, true);
+                    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(chatMessagesData)); } catch(e) {}
+                    if (isMe) {
+                        writeToCloud(chatMessagesData);
+                    }
+                    // 同浏览器多标签同步
                     if (channel) { try { channel.postMessage({ type: 'new_message', data: msgObj }); } catch(_) {} }
                     return true;
                 }
 
                 // ===== BroadcastChannel =====
                 let channel = null;
-                try { channel = new BroadcastChannel('danmaku_channel_local'); } catch(_) {}
+                try { channel = new BroadcastChannel('danmaku_channel_cloud'); } catch(_) {}
                 if (channel) {
                     channel.onmessage = function(e) {
                         const data = e.data;
@@ -694,9 +709,9 @@
                                 msg.isOther = true;
                                 msg.isMe = false;
                                 chatMessagesData.push(msg);
-                                saveLocalHistory(chatMessagesData);
                                 renderChatMessage(msg);
                                 renderDanmaku(msg.text, true);
+                                try { localStorage.setItem(STORAGE_KEY, JSON.stringify(chatMessagesData)); } catch(e) {}
                             }
                         } else if (data.type === 'music_toggle') {
                             if (audio && data.action === 'play') { audio.play().catch(() => {}); }
@@ -708,7 +723,6 @@
 
                 // ===== 发送消息 =====
                 function sendMyMessage() {
-                    console.log('📨 sendMyMessage 被调用');
                     const text = chatInput.value.trim();
                     if (!text) { showToast('💬 输入点内容吧', 1000); return; }
                     addMessage(text, false);
@@ -717,7 +731,6 @@
                 }
 
                 function refreshDanmaku() {
-                    console.log('🔄 refreshDanmaku 被调用');
                     danmakuLayer.querySelectorAll('.danmaku-item').forEach(el => el.remove());
                     danmakuCount = 0;
                     updateCounter();
@@ -832,7 +845,6 @@
                         updatePlayUI();
                     });
                     updatePlayUI();
-                    // 遮罩显示，等待点击
                 }
 
                 function updatePlayUI() {
@@ -843,11 +855,7 @@
                 }
 
                 function togglePlay() {
-                    console.log('▶️ togglePlay 被调用');
-                    if (!audio) {
-                        console.warn('❌ audio 未初始化');
-                        return;
-                    }
+                    if (!audio) return;
                     if (isPlaying) {
                         audio.pause();
                     } else {
@@ -864,16 +872,10 @@
                     showToast(isLoop ? '🔁 循环已开启' : '🔁 循环已关闭', 1200);
                 }
 
-                // ===== 遮罩控制 =====
-                function hideOverlay() {
-                    musicOverlay.classList.add('hidden');
-                }
+                // ===== 遮罩 =====
+                function hideOverlay() { musicOverlay.classList.add('hidden'); }
+                function showOverlay() { musicOverlay.classList.remove('hidden'); }
 
-                function showOverlay() {
-                    musicOverlay.classList.remove('hidden');
-                }
-
-                // ===== 大按钮播放 =====
                 function startFromOverlay(e) {
                     e.stopPropagation();
                     if (audio && !isPlaying) {
@@ -886,7 +888,6 @@
                             showToast('⚠️ 播放失败，请点击播放按钮', 1500);
                         });
                     } else if (audio && isPlaying) {
-                        // 如果已经播放，直接隐藏遮罩
                         hideOverlay();
                     }
                 }
@@ -906,7 +907,6 @@
                     }
                 }
 
-                // ===== 昵称提示 =====
                 function showNameHint() { nameHint.classList.add('show'); setTimeout(() => { nameHint.classList.remove('show'); }, 5500); }
 
                 // ===== 绑定事件 =====
@@ -923,8 +923,6 @@
                     playBtn.addEventListener('click', togglePlay);
                     loopBtn.addEventListener('click', toggleLoop);
                     nicknameArea.addEventListener('click', changeNickname);
-
-                    // 遮罩大按钮和遮罩本身点击
                     bigPlayBtn.addEventListener('click', startFromOverlay);
                     musicOverlay.addEventListener('click', startFromOverlay);
 
@@ -943,32 +941,44 @@
 
                 // ===== 启动 =====
                 console.log('📦 加载历史消息...');
-                chatMessagesData.forEach(msg => { renderChatMessage(msg); });
-                console.log(`📜 已加载 ${chatMessagesData.length} 条消息`);
+                try {
+                    const cached = localStorage.getItem(STORAGE_KEY);
+                    if (cached) {
+                        const parsed = JSON.parse(cached);
+                        if (Array.isArray(parsed)) {
+                            chatMessagesData = parsed;
+                            chatMessagesData.forEach(msg => renderChatMessage(msg));
+                            console.log(`📜 从缓存加载了 ${chatMessagesData.length} 条消息`);
+                        }
+                    }
+                } catch(e) {}
 
                 setBackgroundImage(DEFAULT_BG);
                 setTimeout(initStars, 50);
                 initAudio();
-                // 初始显示遮罩
                 showOverlay();
                 setTimeout(() => chatInput.focus(), 500);
                 setTimeout(showNameHint, 800);
 
                 bindEvents();
 
-                console.log('🎯 纪念市杂谈 启动完成！遮罩已显示，点击播放音乐');
-                showToast('🎵 点击播放音乐开始', 3000);
+                // 首次同步
+                setTimeout(loadFromCloud, 1000);
+                setInterval(loadFromCloud, 4000);
 
-                // 暴露控制台
+                console.log('🎯 纪念市杂谈 云端实时版已启动');
+                showToast('💡 消息将同步到云端，所有设备实时可见', 3000);
+
                 window.__chat = {
                     send: sendMyMessage,
                     refresh: refreshDanmaku,
                     history: () => chatMessagesData,
                     clearHistory: () => {
                         chatMessagesData = [];
-                        saveLocalHistory([]);
+                        try { localStorage.setItem(STORAGE_KEY, JSON.stringify([])); } catch(e) {}
                         chatMessages.innerHTML = '';
                         showToast('🗑️ 历史已清空', 1200);
+                        writeToCloud([]);
                     },
                     music: {
                         play: () => { if (audio) audio.play().catch(() => {}); },
