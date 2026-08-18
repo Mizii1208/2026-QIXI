@@ -504,7 +504,8 @@
 
     <script>
         // ============================================================
-        //  🚀 最终稳定版 - 直接读写 jsonbin.io（无需代理）
+        //  🚀 最终方案：直接读写 jsonbin.io（无代理，无 Token）
+        //  公开 Bin 支持跨域 GET 和 PUT
         // ============================================================
         const BIN_ID = '6a841b66da38895dfef1f2b0';
         const BIN_URL = `https://api.jsonbin.io/v3/b/${BIN_ID}`;
@@ -628,7 +629,7 @@
                     chatMessagesData.forEach(msg => renderChatMessage(msg));
                 }
 
-                // ===== 云端读写 =====
+                // ===== 云端读写（直接，无代理） =====
                 function loadFromCloud() {
                     const url = getReadUrl();
                     console.log('📡 读取开始:', url);
@@ -666,7 +667,7 @@
                         })
                         .catch(err => {
                             console.warn('读取失败:', err);
-                            showToast('⚠️ 读取失败，请刷新', 2000);
+                            showToast('⚠️ 读取失败，请检查网络', 2000);
                         });
                 }
 
@@ -687,26 +688,8 @@
                         setTimeout(loadFromCloud, 500);
                     })
                     .catch(err => {
-                        console.error('直接写入失败，尝试代理:', err);
-                        // 降级：使用 corsproxy.io
-                        const proxyUrl = 'https://corsproxy.io/?' + encodeURIComponent(url);
-                        fetch(proxyUrl, {
-                            method: 'PUT',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ messages: data })
-                        })
-                        .then(res => {
-                            if (!res.ok) throw new Error(`代理写入 HTTP ${res.status}`);
-                            return res.json();
-                        })
-                        .then(() => {
-                            showToast('✅ 已保存云端（代理）', 1500);
-                            setTimeout(loadFromCloud, 500);
-                        })
-                        .catch(err2 => {
-                            console.error('代理写入也失败:', err2);
-                            showToast('⚠️ 保存失败，请重试', 2000);
-                        });
+                        console.error('写入失败:', err);
+                        showToast('⚠️ 保存失败，请重试', 2000);
                     });
                 }
 
@@ -995,7 +978,7 @@
                 setTimeout(loadFromCloud, 1000);
                 setInterval(loadFromCloud, 5000);
 
-                console.log('🎯 启动完成 (稳定版)');
+                console.log('🎯 启动完成 (直连 jsonbin.io)');
                 showToast('💡 消息将自动同步，无需登录', 3000);
 
                 window.__chat = {
