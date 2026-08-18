@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-    <title>纪念市杂谈</title>
+    <title>纪念市杂谈 · 七夕祝福</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -504,46 +504,18 @@
 
     <script>
         // ============================================================
-        //  🚀 最终方案 - 使用 GitHub Issues 作为留言板
-        //  用户首次输入自己的 GitHub Token（仅需 public_repo 权限）
-        //  之后 Token 保存在 localStorage 中
+        //  🚀 最终方案 - 使用 corsproxy.io 代理 + jsonbin.io 公开 Bin
+        //  无需任何 Token，所有人打开即可留言和查看
         // ============================================================
-        const REPO_OWNER = 'Mizii1208';
-        const REPO_NAME = '2026-QIXI';
-        const ISSUE_NUMBER = 1; // 您已创建的 Issue 编号
+        const BIN_ID = '6a841b66da38895dfef1f2b0';
+        const BIN_URL = `https://api.jsonbin.io/v3/b/${BIN_ID}`;
+        // 使用 corsproxy.io 代理（支持 GET 和 PUT）
+        const PROXY = 'https://corsproxy.io/?';
+        const PROXY_URL = PROXY + encodeURIComponent(BIN_URL);
 
         (function() {
             'use strict';
 
-            // ===== 获取或提示输入 Token =====
-            function getToken() {
-                let token = localStorage.getItem('github_token');
-                if (!token) {
-                    token = prompt('请输入您的 GitHub Token（仅需 public_repo 权限）：\n生成地址：https://github.com/settings/tokens');
-                    if (token) {
-                        localStorage.setItem('github_token', token);
-                    } else {
-                        alert('没有 Token 将无法同步消息，但您仍可本地查看。');
-                    }
-                }
-                return token;
-            }
-
-            const GITHUB_TOKEN = getToken();
-
-            // ===== 构建 Issue 评论 API 地址 =====
-            const ISSUE_API = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/issues/${ISSUE_NUMBER}/comments`;
-
-            function getHeaders() {
-                return {
-                    'Content-Type': 'application/json',
-                    'Authorization': `token ${GITHUB_TOKEN}`
-                };
-            }
-
-            // ============================================================
-            //  以下代码与之前相同，只修改读写部分使用 GitHub Issue
-            // ============================================================
             console.log('🚀 脚本加载开始...');
 
             function init() {
@@ -579,7 +551,7 @@
                 const MUSIC_URL = 'https://cdn.jsdelivr.net/gh/Mizii1208/After-all/After%20All.mp3';
                 const MAX_DANMAKU = 80;
                 const MAX_HISTORY = 150;
-                const STORAGE_KEY = 'chat_history_issues';
+                const STORAGE_KEY = 'chat_history_cloud';
                 const USER_KEY = 'user_info_local';
                 const DEFAULT_BG = 'https://cdn.jsdelivr.net/gh/Mizii1208/-2026-/446dc1f2599abf8cd4f69b60617b86ee.jpg';
                 const COLORS = ['#FFD700','#FFC107','#FFB300','#FDD835','#FFEE58','#FFF176','#9B59B6','#8E44AD','#A855F7','#7C3AED','#6D28D9','#9333EA'];
@@ -646,79 +618,59 @@
                     chatMessages.scrollTop = chatMessages.scrollHeight;
                 }
 
-                // ===== 云端读写（GitHub Issues） =====
+                // ===== 云端读写（通过代理） =====
                 function loadFromCloud() {
-                    if (!GITHUB_TOKEN) return;
-                    fetch(ISSUE_API, { headers: getHeaders() })
+                    fetch(PROXY_URL)
                         .then(res => {
                             if (!res.ok) throw new Error(`HTTP ${res.status}`);
                             return res.json();
                         })
-                        .then(comments => {
-                            console.log('📥 云端评论:', comments);
-                            const cloudMsgs = [];
-                            for (const comment of comments) {
-                                try {
-                                    const data = JSON.parse(comment.body);
-                                    if (data && data.text && data.name) {
-                                        cloudMsgs.push({
-                                            id: comment.id,
-                                            text: data.text,
-                                            name: data.name || '陌生人',
-                                            avatar: data.avatar || '👤',
-                                            time: new Date(comment.created_at).getTime(),
-                                            isOther: true,
-                                            isMe: false
-                                        });
-                                    }
-                                } catch(e) {}
+                        .then(data => {
+                            console.log('📥 云端数据:', data);
+                            let messages = null;
+                            if (data && data.record && Array.isArray(data.record.messages)) {
+                                messages = data.record.messages;
+                            } else if (data && Array.isArray(data.messages)) {
+                                messages = data.messages;
                             }
-                            const localIds = new Set(chatMessagesData.map(m => m.id));
-                            let added = 0;
-                            for (const msg of cloudMsgs) {
-                                if (!localIds.has(msg.id)) {
-                                    chatMessagesData.push(msg);
-                                    renderChatMessage(msg);
-                                    renderDanmaku(msg.text, true);
-                                    added++;
+                            if (messages) {
+                                const localIds = new Set(chatMessagesData.map(m => m.id));
+                                let added = 0;
+                                for (const msg of messages) {
+                                    if (!localIds.has(msg.id)) {
+                                        msg.isOther = true;
+                                        msg.isMe = false;
+                                        chatMessagesData.push(msg);
+                                        renderChatMessage(msg);
+                                        renderDanmaku(msg.text, true);
+                                        added++;
+                                    }
+                                }
+                                if (added > 0) {
+                                    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(chatMessagesData)); } catch(e) {}
+                                    showToast(`✅ 同步了 ${added} 条新消息`, 2000);
                                 }
                             }
-                            if (added > 0) {
-                                try { localStorage.setItem(STORAGE_KEY, JSON.stringify(chatMessagesData)); } catch(e) {}
-                                showToast(`✅ 同步了 ${added} 条新消息`, 2000);
-                            }
                         })
-                        .catch(err => console.warn('读取 Issues 失败:', err));
+                        .catch(err => console.warn('读取云端失败:', err));
                 }
 
-                function writeToCloud(msgObj) {
-                    if (!GITHUB_TOKEN) {
-                        showToast('⚠️ 未设置 Token，消息仅保存在本地', 2000);
-                        return;
-                    }
-                    const body = JSON.stringify({
-                        text: msgObj.text,
-                        name: msgObj.name,
-                        avatar: msgObj.avatar,
-                        time: msgObj.time
-                    });
-                    fetch(ISSUE_API, {
-                        method: 'POST',
-                        headers: getHeaders(),
-                        body: JSON.stringify({ body: body })
+                function writeToCloud(data) {
+                    fetch(PROXY_URL, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ messages: data })
                     })
                     .then(res => {
                         if (!res.ok) throw new Error(`HTTP ${res.status}`);
                         return res.json();
                     })
-                    .then(comment => {
-                        msgObj.id = comment.id;
-                        try { localStorage.setItem(STORAGE_KEY, JSON.stringify(chatMessagesData)); } catch(e) {}
+                    .then(() => {
                         showToast('✅ 消息已保存到云端', 1500);
                     })
                     .catch(err => {
-                        console.error('写入 Issue 失败:', err);
-                        showToast('⚠️ 保存失败，请检查 Token 或网络', 2000);
+                        console.error('写入云端失败:', err);
+                        showToast('⚠️ 保存失败，请检查网络', 2000);
                     });
                 }
 
@@ -730,14 +682,14 @@
                     const name = senderName || (isOther ? '陌生人' : myName);
                     const avatar = senderAvatar || (isOther ? '👤' : myAvatar);
                     const isMe = !isOther;
-                    const msgObj = { id: `temp_${Date.now()}_${Math.random().toString(36).substr(2,4)}`, text, name, avatar, isOther, isMe, time };
+                    const msgObj = { id: `${time}_${Math.random().toString(36).substr(2,4)}`, text, name, avatar, isOther, isMe, time };
                     chatMessagesData.push(msgObj);
                     renderChatMessage(msgObj);
                     if (isMe) renderDanmaku(text, false);
                     else renderDanmaku(text, true);
                     try { localStorage.setItem(STORAGE_KEY, JSON.stringify(chatMessagesData)); } catch(e) {}
                     if (isMe) {
-                        writeToCloud(msgObj);
+                        writeToCloud(chatMessagesData);
                     }
                     // 广播给同浏览器其他标签
                     if (channel) { try { channel.postMessage({ type: 'new_message', data: msgObj }); } catch(_) {} }
@@ -746,7 +698,7 @@
 
                 // ===== BroadcastChannel =====
                 let channel = null;
-                try { channel = new BroadcastChannel('danmaku_channel_issues'); } catch(_) {}
+                try { channel = new BroadcastChannel('danmaku_channel_cloud'); } catch(_) {}
                 if (channel) {
                     channel.onmessage = function(e) {
                         const data = e.data;
@@ -1011,15 +963,11 @@
                 bindEvents();
 
                 // 首次同步
-                if (GITHUB_TOKEN) {
-                    setTimeout(loadFromCloud, 1000);
-                    setInterval(loadFromCloud, 5000);
-                } else {
-                    showToast('💡 未设置 Token，消息仅保存在本地', 3000);
-                }
+                setTimeout(loadFromCloud, 1000);
+                setInterval(loadFromCloud, 4000);
 
-                console.log('🎯 纪念市杂谈 最终版已启动');
-                showToast('💡 消息将同步到 GitHub Issues，所有设备实时可见', 3000);
+                console.log('🎯 纪念市杂谈 最终版已启动（完全匿名）');
+                showToast('💡 消息将同步到云端，所有设备实时可见，无需任何登录', 3000);
 
                 window.__chat = {
                     send: sendMyMessage,
@@ -1030,6 +978,7 @@
                         try { localStorage.setItem(STORAGE_KEY, JSON.stringify([])); } catch(e) {}
                         chatMessages.innerHTML = '';
                         showToast('🗑️ 历史已清空', 1200);
+                        writeToCloud([]);
                     },
                     music: {
                         play: () => { if (audio) audio.play().catch(() => {}); },
