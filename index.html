@@ -504,14 +504,16 @@
 
     <script>
         // ============================================================
-        //  🚀 最终方案 - 使用 corsproxy.io 代理 + jsonbin.io 公开 Bin
-        //  无需任何 Token，所有人打开即可留言和查看
+        //  🚀 最终修订版 - 使用 corsproxy.io 并强制刷新缓存
         // ============================================================
         const BIN_ID = '6a841b66da38895dfef1f2b0';
         const BIN_URL = `https://api.jsonbin.io/v3/b/${BIN_ID}`;
-        // 使用 corsproxy.io 代理（支持 GET 和 PUT）
         const PROXY = 'https://corsproxy.io/?';
-        const PROXY_URL = PROXY + encodeURIComponent(BIN_URL);
+        // 读取时加时间戳破坏缓存
+        function getReadUrl() {
+            return PROXY + encodeURIComponent(BIN_URL + '?meta=false&_=' + Date.now());
+        }
+        const WRITE_URL = PROXY + encodeURIComponent(BIN_URL);
 
         (function() {
             'use strict';
@@ -618,9 +620,9 @@
                     chatMessages.scrollTop = chatMessages.scrollHeight;
                 }
 
-                // ===== 云端读写（通过代理） =====
+                // ===== 云端读写 =====
                 function loadFromCloud() {
-                    fetch(PROXY_URL)
+                    fetch(getReadUrl())
                         .then(res => {
                             if (!res.ok) throw new Error(`HTTP ${res.status}`);
                             return res.json();
@@ -656,7 +658,7 @@
                 }
 
                 function writeToCloud(data) {
-                    fetch(PROXY_URL, {
+                    fetch(WRITE_URL, {
                         method: 'PUT',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ messages: data })
@@ -966,8 +968,8 @@
                 setTimeout(loadFromCloud, 1000);
                 setInterval(loadFromCloud, 4000);
 
-                console.log('🎯 纪念市杂谈 最终版已启动（完全匿名）');
-                showToast('💡 消息将同步到云端，所有设备实时可见，无需任何登录', 3000);
+                console.log('🎯 纪念市杂谈 最终修订版已启动（强制刷新缓存）');
+                showToast('💡 消息将同步到云端，所有设备实时可见', 3000);
 
                 window.__chat = {
                     send: sendMyMessage,
