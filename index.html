@@ -132,17 +132,21 @@
 
     <script>
         // ============================================================
-        //  🔑 必填项：请替换为您的 Gist ID 和 GitHub Token
-        //  获取 Gist ID：创建 Gist 后，地址栏中 https://gist.github.com/用户名/xxxxx 的 xxxxx
-        //  获取 Token：GitHub Settings → Developer settings → Personal access tokens → 生成新 token，只勾选 'gist'
+        //  🔑 请替换 YOUR_GITHUB_TOKEN 为您的 public_repo Token
+        //  生成方式：Settings → Developer settings → Personal access tokens → Tokens (classic)
+        //  → Generate new token (classic) → 勾选 public_repo
         // ============================================================
-        const GIST_ID = '1181cd69f706bb598f1df905204e92a8';
-        const GITHUB_TOKEN = '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';
+        const REPO_OWNER = 'Mizii1208';
+        const REPO_NAME = '2026-QIXI';
+        const ISSUE_NUMBER = 1;
+        const GITHUB_TOKEN = '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';   // ← 替换为您的 token
         // ============================================================
 
-        const GIST_API = `https://api.github.com/gists/${GIST_ID}`;
-        const STORAGE_KEY = 'chat_history_gist';
-        const USER_KEY = 'user_info_gist';
+        const ISSUE_API = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/issues/${ISSUE_NUMBER}/comments`;
+        const HEADERS = {
+            'Content-Type': 'application/json',
+            'Authorization': `token ${GITHUB_TOKEN}`
+        };
 
         (function() {
             'use strict';
@@ -171,6 +175,8 @@
             const MUSIC_URL = 'https://cdn.jsdelivr.net/gh/Mizii1208/After-all/After%20All.mp3';
             const MAX_DANMAKU = 80;
             const MAX_HISTORY = 150;
+            const STORAGE_KEY = 'chat_history_issues';
+            const USER_KEY = 'user_info_issues';
             const DEFAULT_BG = 'https://cdn.jsdelivr.net/gh/Mizii1208/-2026-/446dc1f2599abf8cd4f69b60617b86ee.jpg';
 
             const COLORS = ['#FFD700','#FFC107','#FFB300','#FDD835','#FFEE58','#FFF176','#9B59B6','#8E44AD','#A855F7','#7C3AED','#6D28D9','#9333EA'];
@@ -204,7 +210,7 @@
 
             // ===== BroadcastChannel（同浏览器多标签） =====
             let channel = null;
-            try { channel = new BroadcastChannel('danmaku_channel_gist'); } catch(_) {}
+            try { channel = new BroadcastChannel('danmaku_channel_issues'); } catch(_) {}
 
             // ===== 本地存储 =====
             function loadLocalHistory() {
@@ -270,75 +276,76 @@
                 chatMessages.scrollTop = chatMessages.scrollHeight;
             }
 
-            // ===== 读取 Gist =====
-            function loadFromGist() {
-                fetch(GIST_API, {
-                    headers: { 'Authorization': `token ${GITHUB_TOKEN}` }
-                })
+            // ===== 从 Issue 评论加载历史 =====
+            function loadFromIssues() {
+                fetch(ISSUE_API, { headers: HEADERS })
                 .then(res => {
                     if (!res.ok) throw new Error(`HTTP ${res.status}`);
                     return res.json();
                 })
-                .then(data => {
-                    if (data && data.files) {
-                        const filename = Object.keys(data.files)[0];
-                        const content = data.files[filename].content;
+                .then(comments => {
+                    const cloudMsgs = [];
+                    for (const comment of comments) {
                         try {
-                            const parsed = JSON.parse(content);
-                            if (parsed.messages) {
-                                const cloudMsgs = parsed.messages;
-                                const localIds = new Set(chatMessagesData.map(m => m.id));
-                                let added = 0;
-                                for (const msg of cloudMsgs) {
-                                    if (!localIds.has(msg.id)) {
-                                        msg.isOther = true;
-                                        msg.isMe = false;
-                                        chatMessagesData.push(msg);
-                                        renderChatMessage(msg);
-                                        renderDanmaku(msg.text, true);
-                                        added++;
-                                    }
-                                }
-                                if (added > 0) {
-                                    saveLocalHistory(chatMessagesData);
-                                    showToast(`✅ 同步了 ${added} 条新消息`, 2000);
-                                }
+                            const data = JSON.parse(comment.body);
+                            if (data && data.text && data.name) {
+                                cloudMsgs.push({
+                                    id: comment.id,
+                                    text: data.text,
+                                    name: data.name || '陌生人',
+                                    avatar: data.avatar || '👤',
+                                    time: new Date(comment.created_at).getTime(),
+                                    isOther: true,
+                                    isMe: false
+                                });
                             }
-                        } catch(e) {
-                            console.warn('解析 Gist 内容失败:', e);
+                        } catch(e) {}
+                    }
+                    const localIds = new Set(chatMessagesData.map(m => m.id));
+                    let added = 0;
+                    for (const msg of cloudMsgs) {
+                        if (!localIds.has(msg.id)) {
+                            chatMessagesData.push(msg);
+                            renderChatMessage(msg);
+                            renderDanmaku(msg.text, true);
+                            added++;
                         }
+                    }
+                    if (added > 0) {
+                        saveLocalHistory(chatMessagesData);
+                        showToast(`✅ 同步了 ${added} 条新消息`, 2000);
                     }
                 })
                 .catch(err => {
-                    console.warn('读取 Gist 失败:', err);
+                    console.warn('读取 Issue 评论失败:', err);
                 });
             }
 
-            // ===== 写入 Gist =====
-            function writeToGist(data) {
-                const fileContent = JSON.stringify({ messages: data }, null, 2);
-                const filename = 'chat.json';
-                const files = {};
-                files[filename] = { content: fileContent };
-
-                return fetch(GIST_API, {
-                    method: 'PATCH',
-                    headers: {
-                        'Authorization': `token ${GITHUB_TOKEN}`,
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ files: files })
+            // ===== 写入 Issue 评论 =====
+            function writeToIssues(msgObj) {
+                const body = JSON.stringify({
+                    text: msgObj.text,
+                    name: msgObj.name,
+                    avatar: msgObj.avatar,
+                    time: msgObj.time
+                });
+                return fetch(ISSUE_API, {
+                    method: 'POST',
+                    headers: HEADERS,
+                    body: JSON.stringify({ body: body })
                 })
                 .then(res => {
                     if (!res.ok) throw new Error(`HTTP ${res.status}`);
                     return res.json();
                 })
-                .then(() => {
+                .then(comment => {
+                    msgObj.id = comment.id;
+                    saveLocalHistory(chatMessagesData);
                     showToast('✅ 消息已保存到云端', 1500);
                 })
                 .catch(err => {
-                    console.error('写入 Gist 失败:', err);
-                    showToast('⚠️ 保存失败，请检查 Token 或 Gist ID', 2000);
+                    console.error('写入 Issue 失败:', err);
+                    showToast('⚠️ 保存失败，请检查网络或 Token', 2000);
                 });
             }
 
@@ -350,7 +357,7 @@
                 const name = senderName || (isOther ? '陌生人' : myName);
                 const avatar = senderAvatar || (isOther ? '👤' : myAvatar);
                 const isMe = !isOther;
-                const msgObj = { id: `${time}_${Math.random().toString(36).substr(2,4)}`, text, name, avatar, isOther, isMe, time };
+                const msgObj = { id: `temp_${Date.now()}_${Math.random().toString(36).substr(2,4)}`, text, name, avatar, isOther, isMe, time };
 
                 chatMessagesData.push(msgObj);
                 saveLocalHistory(chatMessagesData);
@@ -361,7 +368,7 @@
                 if (channel) { try { channel.postMessage({ type: 'new_message', data: msgObj }); } catch(_) {} }
 
                 if (isMe) {
-                    writeToGist(chatMessagesData);
+                    writeToIssues(msgObj);
                 }
                 return true;
             }
@@ -524,20 +531,15 @@
 
             // ===== 初始化 =====
             function init() {
-                // 从 Gist 加载历史
-                loadFromGist();
-
+                loadFromIssues();
                 setBackgroundImage(DEFAULT_BG);
                 setTimeout(initStars, 50);
                 initAudio();
                 setTimeout(() => chatInput.focus(), 500);
                 setTimeout(showNameHint, 800);
-
-                // 每 8 秒轮询一次云端
-                setInterval(loadFromGist, 8000);
-
-                console.log('🎯 纪念市杂谈 (Gist版) 已启动');
-                showToast('💡 消息将同步到 GitHub Gist，跨设备可见', 3000);
+                setInterval(loadFromIssues, 10000);
+                console.log('🎯 纪念市杂谈 (Issues版) 已启动');
+                showToast('💡 消息将同步到 GitHub Issues，跨设备可见', 3000);
             }
 
             if (document.readyState === 'complete') { init(); } else { window.addEventListener('load', init); }
@@ -550,8 +552,7 @@
                     chatMessagesData = [];
                     saveLocalHistory([]);
                     chatMessages.innerHTML = '';
-                    showToast('🗑️ 历史已清空', 1200);
-                    writeToGist([]);
+                    showToast('🗑️ 本地历史已清空', 1200);
                 },
                 music: { play: () => { if (audio) audio.play().catch(() => {}); }, pause: () => { if (audio) audio.pause(); }, toggle: togglePlay, loop: toggleLoop }
             };
