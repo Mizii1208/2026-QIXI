@@ -69,21 +69,10 @@
             background: linear-gradient(135deg, rgba(20,20,50,0.15) 0%, rgba(0,0,0,0.30) 100%);
             z-index: 0;
         }
-        /* ===== 舞台星星（覆盖在图片上） ===== */
-        #stageStars {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            pointer-events: none;
-            z-index: 2;
-            border-radius: inherit;
-        }
         .danmaku-layer {
             position: absolute;
             inset: 0;
-            z-index: 3;
+            z-index: 1;
             overflow: hidden;
             pointer-events: none;
         }
@@ -425,61 +414,183 @@
         }
         .toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
 
-        /* ===== 手机适配 ===== */
+        /* ===== 手机适配优化 ===== */
         @media (max-width: 820px) {
-            body { padding: 0; align-items: center; justify-content: center; height: 100vh; overflow: hidden; }
-            .card { flex-direction: column; max-height: 100vh; height: 100vh; width: 100vw; border-radius: 0; max-width: none; aspect-ratio: auto; margin: 0; overflow: hidden; }
-            .stage { width: 100%; flex: none; height: 45vh; aspect-ratio: auto; min-height: 0; }
-            .chat-panel { width: 100% !important; min-width: 0; max-width: 100%; flex: 1; height: auto; border-left: none; border-top: 1px solid rgba(255,255,255,0.06); flex-shrink: 0; overflow: hidden; }
-            .music-overlay { border-radius: 0; }
-            .refresh-btn { bottom: 12px; right: 10px; font-size: 10px; padding: 3px 10px; }
-            .status-overlay { top: 8px; left: 8px; right: 8px; }
-            .badge { font-size: 9px; padding: 2px 8px; }
-            .music-player .info .title { font-size: 12px; }
-            .music-player .info .artist { font-size: 10px; }
-            .music-player .controls button { width: 26px; height: 26px; font-size: 12px; }
-            .music-player .controls .play-btn { width: 30px; height: 30px; font-size: 14px; }
-            .danmaku-item { font-size: 14px !important; }
-            .chat-header .nickname-area .name { max-width: 50px; }
-            .music-overlay .icon { font-size: 48px; }
-            .music-overlay .play-btn-big { font-size: 18px; padding: 10px 36px; }
-            .chat-messages { padding: 4px 8px; }
-            .msg-item { font-size: 11px; }
+            body {
+                padding: 0;
+                align-items: center;
+                justify-content: center;
+                height: 100vh;
+                overflow: hidden;
+            }
+            .card {
+                flex-direction: column;
+                max-height: 100vh;      /* 改为 100vh，占满屏幕 */
+                height: 100vh;          /* 固定高度，防止溢出 */
+                width: 100vw;
+                border-radius: 0;
+                max-width: none;
+                aspect-ratio: auto;
+                margin: 0;
+                overflow: hidden;
+            }
+            .stage {
+                width: 100%;
+                flex: none;
+                height: 45vh;           /* 可以微调此值（40~50vh） */
+                aspect-ratio: auto;
+                min-height: 0;
+            }
+            .chat-panel {
+                width: 100% !important;
+                min-width: 0;
+                max-width: 100%;
+                flex: 1;                /* 自动填满剩余高度 */
+                height: auto;           /* 不固定高度，由 flex 决定 */
+                border-left: none;
+                border-top: 1px solid rgba(255,255,255,0.06);
+                flex-shrink: 0;
+                overflow: hidden;
+            }
+            .music-overlay {
+                border-radius: 0;
+            }
+            .refresh-btn {
+                bottom: 12px;
+                right: 10px;
+                font-size: 10px;
+                padding: 3px 10px;
+            }
+            .status-overlay {
+                top: 8px;
+                left: 8px;
+                right: 8px;
+            }
+            .badge {
+                font-size: 9px;
+                padding: 2px 8px;
+            }
+            .music-player .info .title {
+                font-size: 12px;
+            }
+            .music-player .info .artist {
+                font-size: 10px;
+            }
+            .music-player .controls button {
+                width: 26px;
+                height: 26px;
+                font-size: 12px;
+            }
+            .music-player .controls .play-btn {
+                width: 30px;
+                height: 30px;
+                font-size: 14px;
+            }
+            .danmaku-item {
+                font-size: 14px !important;
+            }
+            .chat-header .nickname-area .name {
+                max-width: 50px;
+            }
+            .music-overlay .icon {
+                font-size: 48px;
+            }
+            .music-overlay .play-btn-big {
+                font-size: 18px;
+                padding: 10px 36px;
+            }
+            .chat-messages {
+                padding: 4px 8px;
+            }
+            .msg-item {
+                font-size: 11px;
+            }
         }
         @media (max-width: 480px) {
-            .stage { height: 40vh; }
-            .chat-messages { padding: 4px 6px; gap: 3px; }
-            .msg-item { font-size: 11px; }
-            .chat-input-area input { font-size: 12px; height: 30px; }
-            .chat-input-area .btn-send { height: 30px; font-size: 12px; padding: 0 12px; }
-            .music-player { min-height: 36px; padding: 4px 10px; }
-            .music-player .info .title { font-size: 11px; }
-            .music-player .info .artist { font-size: 9px; }
-            .music-player .controls button { width: 22px; height: 22px; font-size: 11px; }
-            .music-player .controls .play-btn { width: 26px; height: 26px; font-size: 13px; }
-            .name-hint { font-size: 10px; padding: 2px 8px; }
-            .chat-header .nickname-area { font-size: 11px; padding: 1px 6px; }
-            .chat-header .nickname-area .avatar { font-size: 12px; }
-            .chat-header .online-status { font-size: 9px; }
-            .refresh-btn { bottom: 8px; right: 8px; font-size: 9px; padding: 2px 8px; }
-            .toast { font-size: 11px; padding: 5px 16px; bottom: 80px; }
-            .music-overlay .icon { font-size: 36px; }
-            .music-overlay .play-btn-big { font-size: 16px; padding: 8px 28px; }
+            .stage {
+                height: 40vh;          /* 小屏手机可再调低 */
+            }
+            .chat-panel {
+                /* flex:1 自动适应 */
+            }
+            .chat-messages {
+                padding: 4px 6px;
+                gap: 3px;
+            }
+            .msg-item {
+                font-size: 11px;
+            }
+            .chat-input-area input {
+                font-size: 12px;
+                height: 30px;
+            }
+            .chat-input-area .btn-send {
+                height: 30px;
+                font-size: 12px;
+                padding: 0 12px;
+            }
+            .music-player {
+                min-height: 36px;
+                padding: 4px 10px;
+            }
+            .music-player .info .title {
+                font-size: 11px;
+            }
+            .music-player .info .artist {
+                font-size: 9px;
+            }
+            .music-player .controls button {
+                width: 22px;
+                height: 22px;
+                font-size: 11px;
+            }
+            .music-player .controls .play-btn {
+                width: 26px;
+                height: 26px;
+                font-size: 13px;
+            }
+            .name-hint {
+                font-size: 10px;
+                padding: 2px 8px;
+            }
+            .chat-header .nickname-area {
+                font-size: 11px;
+                padding: 1px 6px;
+            }
+            .chat-header .nickname-area .avatar {
+                font-size: 12px;
+            }
+            .chat-header .online-status {
+                font-size: 9px;
+            }
+            .refresh-btn {
+                bottom: 8px;
+                right: 8px;
+                font-size: 9px;
+                padding: 2px 8px;
+            }
+            .toast {
+                font-size: 11px;
+                padding: 5px 16px;
+                bottom: 80px;
+            }
+            .music-overlay .icon {
+                font-size: 36px;
+            }
+            .music-overlay .play-btn-big {
+                font-size: 16px;
+                padding: 8px 28px;
+            }
         }
     </style>
 </head>
 <body>
 
-    <!-- ===== 全屏星星（背景） ===== -->
     <canvas id="starCanvas"></canvas>
 
     <div class="card" id="card">
         <div class="stage" id="stage">
             <div class="bg-layer" id="bgLayer"></div>
-
-            <!-- ===== 舞台星星（覆盖在图片上） ===== -->
-            <canvas id="stageStars"></canvas>
-
             <div class="danmaku-layer" id="danmakuLayer"></div>
             <div class="status-overlay">
                 <div class="badge">💬 <span id="countNum">0</span></div>
@@ -532,88 +643,7 @@
 
     <script>
         // ============================================================
-        //  ⭐ 舞台星星（轻量、闪烁、细小）- 确保在 DOM 就绪后初始化
-        // ============================================================
-        function initStageStars() {
-            const canvas = document.getElementById('stageStars');
-            if (!canvas) return;
-            const ctx = canvas.getContext('2d');
-            let width, height, stars = [], animId;
-            const stage = document.getElementById('stage');
-
-            function resize() {
-                if (!stage) return;
-                const rect = stage.getBoundingClientRect();
-                canvas.width = rect.width;
-                canvas.height = rect.height;
-                width = canvas.width;
-                height = canvas.height;
-                generateStars();
-            }
-
-            function generateStars() {
-                const count = Math.floor((width * height) / 12000);
-                stars = [];
-                const colors = ['rgba(255,255,255,', 'rgba(255,245,200,', 'rgba(255,210,230,', 'rgba(200,230,255,'];
-                for (let i = 0; i < count; i++) {
-                    stars.push({
-                        x: Math.random() * width,
-                        y: Math.random() * height,
-                        radius: Math.random() * 2.5 + 0.8,
-                        baseAlpha: Math.random() * 0.4 + 0.2,
-                        speed: Math.random() * 0.03 + 0.01,
-                        phase: Math.random() * Math.PI * 2,
-                        color: colors[Math.floor(Math.random() * colors.length)]
-                    });
-                }
-            }
-
-            function animate() {
-                if (!ctx) return;
-                ctx.clearRect(0, 0, width, height);
-                const time = Date.now() / 1000;
-                for (const star of stars) {
-                    const alpha = star.baseAlpha * (0.5 + 0.5 * Math.sin(time * star.speed * 10 + star.phase));
-                    const r = star.radius * (0.8 + 0.2 * Math.sin(time * star.speed * 8 + star.phase + 0.5));
-                    ctx.beginPath();
-                    ctx.arc(star.x, star.y, r, 0, Math.PI * 2);
-                    ctx.fillStyle = star.color + alpha + ')';
-                    ctx.shadowColor = 'rgba(255,255,255,0.1)';
-                    ctx.shadowBlur = 4;
-                    ctx.fill();
-                }
-                ctx.shadowBlur = 0;
-                animId = requestAnimationFrame(animate);
-            }
-
-            // 初始尺寸设置
-            resize();
-            animate();
-
-            // 监听尺寸变化
-            let resizeTimer;
-            const ro = new ResizeObserver(() => {
-                clearTimeout(resizeTimer);
-                resizeTimer = setTimeout(resize, 300);
-            });
-            if (stage) ro.observe(stage);
-
-            // 窗口变化也重新适配
-            window.addEventListener('resize', () => {
-                clearTimeout(resizeTimer);
-                resizeTimer = setTimeout(resize, 300);
-            });
-        }
-
-        // 等待 DOM 完全加载后再初始化舞台星星
-        if (document.readyState === 'complete') {
-            initStageStars();
-        } else {
-            window.addEventListener('load', initStageStars);
-        }
-
-        // ============================================================
-        //  🚀 主逻辑（完整版混合模式）
+        //  🚀 混合版：本地优先，Token 可选（无强制）
         // ============================================================
         const REPO_OWNER = 'Mizii1208';
         const REPO_NAME = '2026-QIXI';
@@ -626,28 +656,33 @@
         function getToken() {
             return localStorage.getItem(TOKEN_KEY) || '';
         }
+
         function setToken(token) {
             localStorage.setItem(TOKEN_KEY, token);
         }
+
         function hasToken() {
             const t = getToken();
             return t && t.length > 0;
         }
+
         function getHeaders() {
+            const token = getToken();
             return {
                 'Content-Type': 'application/json',
-                'Authorization': `token ${getToken()}`
+                'Authorization': `token ${token}`
             };
         }
 
         (function() {
             'use strict';
 
-            console.log('🚀 主脚本加载...');
+            console.log('🚀 脚本加载...');
 
             function init() {
                 console.log('📌 DOM 就绪');
 
+                // DOM 引用
                 const bgLayer = document.getElementById('bgLayer');
                 const danmakuLayer = document.getElementById('danmakuLayer');
                 const chatMessages = document.getElementById('chatMessages');
@@ -919,7 +954,7 @@
                 }
                 function resetBackground() { setBackgroundImage(DEFAULT_BG); showToast('🔄 默认背景', 1200); }
 
-                // ===== 全屏星星（背景） =====
+                // ===== 星星 =====
                 let starCtx, starWidth, starHeight, stars = [], starAnimId = null;
                 function initStars() {
                     starWidth = window.innerWidth;
@@ -1068,7 +1103,7 @@
 
                 function showNameHint() { nameHint.classList.add('show'); setTimeout(() => { nameHint.classList.remove('show'); }, 5500); }
 
-                // ===== 同步状态 =====
+                // ===== 同步状态管理 =====
                 function updateSyncStatusUI() {
                     if (hasToken()) {
                         syncStatus.textContent = '同步中';
@@ -1160,7 +1195,7 @@
                     showToast('💡 点击“本地”可启用云端同步', 3000);
                 }
 
-                console.log('🎯 启动完成 (混合版 + 舞台星星)');
+                console.log('🎯 启动完成 (混合版)');
 
                 window.__chat = {
                     send: sendMyMessage,
