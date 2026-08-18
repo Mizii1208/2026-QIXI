@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-    <title>纪念市杂谈 · 七夕祝福</title>
+    <title>纪念市杂谈 · 七夕</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -443,6 +443,66 @@
             .music-overlay .icon { font-size: 36px; }
             .music-overlay .play-btn-big { font-size: 16px; padding: 8px 28px; }
         }
+
+        /* Token 设置区域 */
+        .token-setup {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.85);
+            backdrop-filter: blur(8px);
+            z-index: 20;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+            padding: 20px;
+            text-align: center;
+            border-radius: 24px 0 0 24px;
+        }
+        .token-setup.hidden { display: none; }
+        .token-setup h2 { margin-bottom: 16px; font-weight: 600; }
+        .token-setup p { margin-bottom: 20px; font-size: 14px; opacity: 0.8; max-width: 400px; }
+        .token-setup input {
+            width: 80%;
+            max-width: 400px;
+            padding: 12px 16px;
+            border-radius: 40px;
+            border: none;
+            background: rgba(255,255,255,0.1);
+            color: #fff;
+            font-size: 14px;
+            outline: none;
+            margin-bottom: 16px;
+            text-align: center;
+        }
+        .token-setup input:focus { background: rgba(255,255,255,0.2); }
+        .token-setup .btn-token {
+            padding: 10px 32px;
+            border-radius: 40px;
+            border: none;
+            background: linear-gradient(135deg, #FFD700, #9B59B6);
+            color: #fff;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        .token-setup .btn-token:hover { transform: scale(1.05); }
+        .token-setup .btn-token:active { transform: scale(0.95); }
+        .token-setup .hint {
+            margin-top: 12px;
+            font-size: 12px;
+            opacity: 0.5;
+            max-width: 350px;
+        }
+        .token-setup .hint a { color: #FFD700; }
+        @media (max-width: 820px) {
+            .token-setup { border-radius: 0; }
+        }
     </style>
 </head>
 <body>
@@ -450,6 +510,18 @@
     <canvas id="starCanvas"></canvas>
 
     <div class="card" id="card">
+        <!-- Token 设置遮罩 -->
+        <div class="token-setup" id="tokenSetup">
+            <h2>🔑 设置 GitHub Token</h2>
+            <p>请输入您的 GitHub Token（仅需 <strong>public_repo</strong> 权限）</p>
+            <input type="text" id="tokenInput" placeholder="ghp_xxxxxxxx" />
+            <button class="btn-token" id="tokenSaveBtn">保存 Token</button>
+            <div class="hint">
+                <a href="https://github.com/settings/tokens" target="_blank">点击这里生成 Token</a>
+                <br/>生成后，只勾选 <strong>public_repo</strong>，复制粘贴即可。
+            </div>
+        </div>
+
         <div class="stage" id="stage">
             <div class="bg-layer" id="bgLayer"></div>
             <div class="danmaku-layer" id="danmakuLayer"></div>
@@ -504,27 +576,48 @@
 
     <script>
         // ============================================================
-        //  🚀 增强版：读取直连 jsonbin.io，写入使用代理（带降级）
+        //  🚀 GitHub Issues + 用户输入 Token（保存在 localStorage）
         // ============================================================
-        const BIN_ID = '6a841b66da38895dfef1f2b0';
-        const BIN_URL = `https://api.jsonbin.io/v3/b/${BIN_ID}`;
-        const PROXY = 'https://corsproxy.io/?';
+        const REPO_OWNER = 'Mizii1208';
+        const REPO_NAME = '2026-QIXI';
+        const ISSUE_NUMBER = 1;
+        const ISSUE_API = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/issues/${ISSUE_NUMBER}/comments`;
+        const TOKEN_KEY = 'github_token';
+        const STORAGE_KEY = 'chat_history_issues';
+        const USER_KEY = 'user_info_local';
 
-        function getReadUrl() {
-            return BIN_URL + '?t=' + Date.now();
+        // ===== 获取 Token（从 localStorage） =====
+        function getToken() {
+            return localStorage.getItem(TOKEN_KEY) || '';
         }
 
-        function getWriteUrl() {
-            return BIN_URL;
+        // ===== 设置 Token =====
+        function setToken(token) {
+            localStorage.setItem(TOKEN_KEY, token);
+        }
+
+        // ===== 是否已设置 Token =====
+        function hasToken() {
+            const t = getToken();
+            return t && t.length > 0;
+        }
+
+        // ===== 获取请求头 =====
+        function getHeaders() {
+            const token = getToken();
+            return {
+                'Content-Type': 'application/json',
+                'Authorization': `token ${token}`
+            };
         }
 
         (function() {
             'use strict';
 
-            console.log('🚀 脚本加载开始...');
+            console.log('🚀 脚本加载...');
 
             function init() {
-                console.log('📌 DOM 就绪，开始初始化...');
+                console.log('📌 DOM 就绪');
 
                 // DOM 引用
                 const bgLayer = document.getElementById('bgLayer');
@@ -545,9 +638,12 @@
                 const starCanvas = document.getElementById('starCanvas');
                 const musicOverlay = document.getElementById('musicOverlay');
                 const bigPlayBtn = document.getElementById('bigPlayBtn');
+                const tokenSetup = document.getElementById('tokenSetup');
+                const tokenInput = document.getElementById('tokenInput');
+                const tokenSaveBtn = document.getElementById('tokenSaveBtn');
 
                 if (!chatSendBtn || !playBtn) {
-                    console.error('❌ 关键元素缺失');
+                    console.error('❌ 元素缺失');
                     return;
                 }
                 console.log('✅ DOM 引用成功');
@@ -556,8 +652,6 @@
                 const MUSIC_URL = 'https://cdn.jsdelivr.net/gh/Mizii1208/After-all/After%20All.mp3';
                 const MAX_DANMAKU = 80;
                 const MAX_HISTORY = 150;
-                const STORAGE_KEY = 'chat_history_cloud';
-                const USER_KEY = 'user_info_local';
                 const DEFAULT_BG = 'https://cdn.jsdelivr.net/gh/Mizii1208/-2026-/446dc1f2599abf8cd4f69b60617b86ee.jpg';
                 const COLORS = ['#FFD700','#FFC107','#FFB300','#FDD835','#FFEE58','#FFF176','#9B59B6','#8E44AD','#A855F7','#7C3AED','#6D28D9','#9333EA'];
                 function getRandomColor() { return COLORS[Math.floor(Math.random() * COLORS.length)]; }
@@ -575,7 +669,23 @@
                 updateNicknameUI();
 
                 // ===== 本地缓存 =====
-                let chatMessagesData = [];
+                function loadLocalHistory() {
+                    try {
+                        const data = localStorage.getItem(STORAGE_KEY);
+                        if (data) {
+                            const msgs = JSON.parse(data);
+                            if (Array.isArray(msgs)) return msgs.slice(-MAX_HISTORY);
+                        }
+                    } catch(_) {}
+                    return [];
+                }
+                function saveLocalHistory(msgs) {
+                    try {
+                        const sliced = msgs.slice(-MAX_HISTORY);
+                        localStorage.setItem(STORAGE_KEY, JSON.stringify(sliced));
+                    } catch(_) {}
+                }
+                let chatMessagesData = loadLocalHistory();
 
                 // ===== 弹幕管理 =====
                 let danmakuCount = 0;
@@ -629,81 +739,81 @@
                     chatMessagesData.forEach(msg => renderChatMessage(msg));
                 }
 
-                // ===== 云端读写（读取直连，写入代理降级） =====
+                // ===== 云端读写（GitHub Issues） =====
                 function loadFromCloud() {
-                    const url = getReadUrl();
-                    console.log('📡 读取开始（直连）:', url);
-                    fetch(url)
+                    if (!hasToken()) {
+                        console.warn('⚠️ 未设置 Token，无法同步');
+                        return;
+                    }
+                    fetch(ISSUE_API, { headers: getHeaders() })
                         .then(res => {
-                            console.log('📡 读取状态:', res.status);
+                            console.log('📡 状态:', res.status);
                             if (!res.ok) throw new Error(`HTTP ${res.status}`);
                             return res.json();
                         })
-                        .then(data => {
-                            console.log('📥 云端数据:', data);
-                            let messages = null;
-                            if (data && data.record && Array.isArray(data.record.messages)) {
-                                messages = data.record.messages;
-                            } else if (data && Array.isArray(data.messages)) {
-                                messages = data.messages;
+                        .then(comments => {
+                            console.log('📥 云端评论:', comments);
+                            const cloudMsgs = [];
+                            for (const comment of comments) {
+                                try {
+                                    const data = JSON.parse(comment.body);
+                                    if (data && data.text && data.name) {
+                                        cloudMsgs.push({
+                                            id: comment.id,
+                                            text: data.text,
+                                            name: data.name || '陌生人',
+                                            avatar: data.avatar || '👤',
+                                            time: new Date(comment.created_at).getTime(),
+                                            isOther: true,
+                                            isMe: false
+                                        });
+                                    }
+                                } catch(e) {}
                             }
-                            if (messages && messages.length > 0) {
-                                chatMessagesData = messages.map(msg => {
-                                    if (!msg.isMe) msg.isOther = true;
-                                    return msg;
-                                });
+                            if (cloudMsgs.length > 0) {
+                                chatMessagesData = cloudMsgs;
                                 renderAllMessages();
-                                try { localStorage.setItem(STORAGE_KEY, JSON.stringify(chatMessagesData)); } catch(e) {}
+                                saveLocalHistory(chatMessagesData);
                                 console.log(`✅ 同步 ${chatMessagesData.length} 条`);
                                 showToast(`✅ 已同步 ${chatMessagesData.length} 条消息`, 1500);
-                            } else if (messages && messages.length === 0) {
-                                console.log('📭 云端为空，本地保留');
-                                showToast('📭 暂无新消息', 1500);
                             } else {
-                                console.log('ℹ️ 无新消息');
+                                console.log('📭 云端为空，本地保留');
                             }
                         })
                         .catch(err => {
                             console.warn('读取失败:', err);
-                            showToast('⚠️ 读取失败，请检查网络', 2000);
+                            showToast('⚠️ 读取失败，请检查 Token 或网络', 2000);
                         });
                 }
 
-                function writeToCloud(data) {
-                    const url = getWriteUrl();
-                    console.log('📤 尝试直接写入...');
-                    return fetch(url, {
-                        method: 'PUT',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ messages: data })
+                function writeToCloud(msgObj) {
+                    if (!hasToken()) {
+                        showToast('⚠️ 未设置 Token，消息仅保存在本地', 3000);
+                        return Promise.resolve();
+                    }
+                    const body = JSON.stringify({
+                        text: msgObj.text,
+                        name: msgObj.name,
+                        avatar: msgObj.avatar,
+                        time: msgObj.time
+                    });
+                    return fetch(ISSUE_API, {
+                        method: 'POST',
+                        headers: getHeaders(),
+                        body: JSON.stringify({ body: body })
                     })
                     .then(res => {
-                        if (!res.ok) throw new Error(`Direct PUT HTTP ${res.status}`);
-                        console.log('✅ 直接写入成功');
-                        showToast('✅ 已保存云端', 1500);
-                        setTimeout(loadFromCloud, 500);
+                        if (!res.ok) throw new Error(`HTTP ${res.status}`);
                         return res.json();
                     })
-                    .catch(err => {
-                        console.warn('直接写入失败，尝试代理:', err);
-                        // 使用代理
-                        const proxyUrl = PROXY + encodeURIComponent(url);
-                        return fetch(proxyUrl, {
-                            method: 'PUT',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ messages: data })
-                        })
-                        .then(res => {
-                            if (!res.ok) throw new Error(`Proxy PUT HTTP ${res.status}`);
-                            console.log('✅ 代理写入成功');
-                            showToast('✅ 已保存云端（代理）', 1500);
-                            setTimeout(loadFromCloud, 500);
-                            return res.json();
-                        });
+                    .then(comment => {
+                        msgObj.id = comment.id;
+                        showToast('✅ 已保存云端', 1500);
+                        setTimeout(loadFromCloud, 500);
                     })
                     .catch(err => {
-                        console.error('所有写入方式均失败:', err);
-                        showToast('⚠️ 保存失败，请检查网络', 2000);
+                        console.error('写入失败:', err);
+                        showToast('⚠️ 保存失败，请检查 Token 或网络', 2000);
                         throw err;
                     });
                 }
@@ -716,14 +826,14 @@
                     const name = senderName || (isOther ? '陌生人' : myName);
                     const avatar = senderAvatar || (isOther ? '👤' : myAvatar);
                     const isMe = !isOther;
-                    const msgObj = { id: `${time}_${Math.random().toString(36).substr(2,4)}`, text, name, avatar, isOther, isMe, time };
+                    const msgObj = { id: `temp_${Date.now()}_${Math.random().toString(36).substr(2,4)}`, text, name, avatar, isOther, isMe, time };
                     chatMessagesData.push(msgObj);
                     renderChatMessage(msgObj);
                     if (isMe) renderDanmaku(text, false);
                     else renderDanmaku(text, true);
-                    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(chatMessagesData)); } catch(e) {}
+                    saveLocalHistory(chatMessagesData);
                     if (isMe) {
-                        writeToCloud(chatMessagesData).catch(() => {});
+                        writeToCloud(msgObj).catch(() => {});
                     }
                     // 广播给同浏览器其他标签
                     if (channel) { try { channel.postMessage({ type: 'new_message', data: msgObj }); } catch(_) {} }
@@ -732,7 +842,7 @@
 
                 // ===== BroadcastChannel =====
                 let channel = null;
-                try { channel = new BroadcastChannel('danmaku_channel_cloud'); } catch(_) {}
+                try { channel = new BroadcastChannel('danmaku_channel_issues'); } catch(_) {}
                 if (channel) {
                     channel.onmessage = function(e) {
                         const data = e.data;
@@ -745,7 +855,7 @@
                                 chatMessagesData.push(msg);
                                 renderChatMessage(msg);
                                 renderDanmaku(msg.text, true);
-                                try { localStorage.setItem(STORAGE_KEY, JSON.stringify(chatMessagesData)); } catch(e) {}
+                                saveLocalHistory(chatMessagesData);
                             }
                         } else if (data.type === 'music_toggle') {
                             if (audio && data.action === 'play') { audio.play().catch(() => {}); }
@@ -758,7 +868,7 @@
                 // ===== 发送消息 =====
                 function sendMyMessage() {
                     const text = chatInput.value.trim();
-                    if (!text) { showToast('💬 输入点内容吧', 1000); return; }
+                    if (!text) { showToast('💬 输入内容', 1000); return; }
                     addMessage(text, false);
                     chatInput.value = '';
                     chatInput.focus();
@@ -778,11 +888,37 @@
                     toast._timer = setTimeout(() => { toast.classList.remove('show'); }, duration);
                 }
 
+                // ===== Token 管理 =====
+                function handleTokenSave() {
+                    const token = tokenInput.value.trim();
+                    if (token) {
+                        setToken(token);
+                        tokenSetup.classList.add('hidden');
+                        showToast('✅ Token 已保存', 1500);
+                        // 自动同步
+                        setTimeout(loadFromCloud, 500);
+                    } else {
+                        showToast('⚠️ 请输入有效的 Token', 1500);
+                    }
+                }
+
+                // 检查 Token 是否存在，若存在则隐藏遮罩
+                if (hasToken()) {
+                    tokenSetup.classList.add('hidden');
+                } else {
+                    tokenSetup.classList.remove('hidden');
+                }
+
+                tokenSaveBtn.addEventListener('click', handleTokenSave);
+                tokenInput.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') handleTokenSave();
+                });
+
                 // ===== 背景 =====
                 function setBackgroundImage(src) {
                     bgLayer.style.backgroundImage = `url('${src}')`;
                     const img = new Image();
-                    img.onerror = () => { if (src !== DEFAULT_BG) { bgLayer.style.backgroundImage = `url('${DEFAULT_BG}')`; showToast('⚠️ 图片加载失败，恢复默认', 1800); } };
+                    img.onerror = () => { if (src !== DEFAULT_BG) { bgLayer.style.backgroundImage = `url('${DEFAULT_BG}')`; showToast('⚠️ 图片加载失败', 1800); } };
                     img.src = src;
                 }
                 function resetBackground() { setBackgroundImage(DEFAULT_BG); showToast('🔄 默认背景', 1200); }
@@ -874,7 +1010,7 @@
                         else { isPlaying = false; updatePlayUI(); }
                     });
                     audio.addEventListener('error', () => {
-                        showToast('⚠️ 音频加载失败，请检查网络', 2500);
+                        showToast('⚠️ 音频加载失败', 2500);
                         isPlaying = false;
                         updatePlayUI();
                     });
@@ -890,13 +1026,8 @@
 
                 function togglePlay() {
                     if (!audio) return;
-                    if (isPlaying) {
-                        audio.pause();
-                    } else {
-                        audio.play().catch(() => {
-                            showToast('⚠️ 播放失败，请检查网络', 1500);
-                        });
-                    }
+                    if (isPlaying) audio.pause();
+                    else audio.play().catch(() => showToast('⚠️ 播放失败', 1500));
                 }
 
                 function toggleLoop() {
@@ -918,9 +1049,7 @@
                             updatePlayUI();
                             hideOverlay();
                             showToast('🎵 正在播放', 2000);
-                        }).catch(() => {
-                            showToast('⚠️ 播放失败，请点击播放按钮', 1500);
-                        });
+                        }).catch(() => showToast('⚠️ 播放失败', 1500));
                     } else if (audio && isPlaying) {
                         hideOverlay();
                     }
@@ -928,7 +1057,7 @@
 
                 // ===== 昵称修改 =====
                 function changeNickname() {
-                    const newName = prompt('请输入你的新昵称（留空则恢复为“陌生人”）：', myName);
+                    const newName = prompt('请输入新昵称（留空恢复"陌生人"）：', myName);
                     if (newName !== null) {
                         const trimmed = newName.trim();
                         if (trimmed === '') myName = '陌生人';
@@ -937,7 +1066,7 @@
                         myAvatar = avatars[Math.floor(Math.random() * avatars.length)];
                         localStorage.setItem(USER_KEY, JSON.stringify({ name: myName, avatar: myAvatar }));
                         updateNicknameUI();
-                        showToast('✅ 昵称已更新为: ' + myName, 1500);
+                        showToast('✅ 昵称已更新: ' + myName, 1500);
                     }
                 }
 
@@ -970,22 +1099,13 @@
                         if (e.target.closest('.chat-panel')) return;
                         resetBackground();
                     });
-                    console.log('✅ 所有事件绑定完成');
+                    console.log('✅ 事件绑定完成');
                 }
 
                 // ===== 启动 =====
-                console.log('📦 加载历史消息...');
-                try {
-                    const cached = localStorage.getItem(STORAGE_KEY);
-                    if (cached) {
-                        const parsed = JSON.parse(cached);
-                        if (Array.isArray(parsed)) {
-                            chatMessagesData = parsed;
-                            chatMessagesData.forEach(msg => renderChatMessage(msg));
-                            console.log(`📜 从缓存加载了 ${chatMessagesData.length} 条消息`);
-                        }
-                    }
-                } catch(e) {}
+                console.log('📦 加载缓存...');
+                chatMessagesData.forEach(msg => renderChatMessage(msg));
+                console.log(`📜 缓存 ${chatMessagesData.length} 条`);
 
                 setBackgroundImage(DEFAULT_BG);
                 setTimeout(initStars, 50);
@@ -996,12 +1116,18 @@
 
                 bindEvents();
 
-                // 首次同步
-                setTimeout(loadFromCloud, 1000);
-                setInterval(loadFromCloud, 4000);
+                // 如果已有 Token，尝试同步
+                if (hasToken()) {
+                    setTimeout(loadFromCloud, 1500);
+                    setInterval(loadFromCloud, 8000);
+                }
 
-                console.log('🎯 纪念市杂谈 增强版已启动（读取直连，写入代理降级）');
-                showToast('💡 消息将同步到云端，所有设备实时可见', 3000);
+                console.log('🎯 启动完成 (Token 输入版)');
+                if (hasToken()) {
+                    showToast('💡 Token 已设置，消息将同步到云端', 3000);
+                } else {
+                    showToast('💡 请设置 Token 以实现跨设备同步', 3000);
+                }
 
                 window.__chat = {
                     send: sendMyMessage,
@@ -1009,17 +1135,11 @@
                     history: () => chatMessagesData,
                     clearHistory: () => {
                         chatMessagesData = [];
-                        try { localStorage.setItem(STORAGE_KEY, JSON.stringify([])); } catch(e) {}
+                        saveLocalHistory([]);
                         chatMessages.innerHTML = '';
-                        showToast('🗑️ 历史已清空', 1200);
-                        writeToCloud([]);
+                        showToast('🗑️ 已清空', 1200);
                     },
-                    music: {
-                        play: () => { if (audio) audio.play().catch(() => {}); },
-                        pause: () => { if (audio) audio.pause(); },
-                        toggle: togglePlay,
-                        loop: toggleLoop
-                    }
+                    music: { play: () => { if (audio) audio.play().catch(() => {}); }, pause: () => { if (audio) audio.pause(); }, toggle: togglePlay, loop: toggleLoop }
                 };
             }
 
