@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <title>纪念市杂谈</title>
     <style>
-        /* 完整样式（与之前一致） */
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { min-height: 100vh; background: #0a0a1a; font-family: 'PingFang SC', 'Microsoft YaHei', 'Helvetica Neue', sans-serif; overflow: hidden; position: relative; display: flex; justify-content: center; align-items: center; padding: 12px; margin: 0; }
         #starCanvas { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; pointer-events: none; z-index: 0; }
@@ -133,11 +132,20 @@
 
     <script>
         // ============================================================
-        //  📦 使用 jsonbin.io 公开 Bin（无需 Token，无需认证）
-        //  已填入您的 Bin ID: 6a841b66da38895dfef1f2b0
+        //  🔑 使用 GitHub Issues 存储消息
+        //  请生成一个 public_repo 权限的 Token 填入下方
         // ============================================================
-        const BIN_ID = '6a841b66da38895dfef1f2b0';
-        const BIN_URL = `https://api.jsonbin.io/v3/b/${BIN_ID}`;
+        const REPO_OWNER = 'Mizii1208';
+        const REPO_NAME = '2026-QIXI';
+        const ISSUE_NUMBER = 1;
+        const GITHUB_TOKEN = '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\'; // ← 替换为您的 Token
+        // ============================================================
+
+        const ISSUE_API = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/issues/${ISSUE_NUMBER}/comments`;
+        const HEADERS = {
+            'Content-Type': 'application/json',
+            'Authorization': `token ${GITHUB_TOKEN}`
+        };
 
         (function() {
             'use strict';
@@ -166,8 +174,8 @@
             const MUSIC_URL = 'https://cdn.jsdelivr.net/gh/Mizii1208/After-all/After%20All.mp3';
             const MAX_DANMAKU = 80;
             const MAX_HISTORY = 150;
-            const STORAGE_KEY = 'chat_history_jsonbin';
-            const USER_KEY = 'user_info_jsonbin';
+            const STORAGE_KEY = 'chat_history_issues';
+            const USER_KEY = 'user_info_issues';
             const DEFAULT_BG = 'https://cdn.jsdelivr.net/gh/Mizii1208/-2026-/446dc1f2599abf8cd4f69b60617b86ee.jpg';
 
             const COLORS = ['#FFD700','#FFC107','#FFB300','#FDD835','#FFEE58','#FFF176','#9B59B6','#8E44AD','#A855F7','#7C3AED','#6D28D9','#9333EA'];
@@ -201,7 +209,7 @@
 
             // ===== BroadcastChannel（同浏览器多标签） =====
             let channel = null;
-            try { channel = new BroadcastChannel('danmaku_channel_jsonbin'); } catch(_) {}
+            try { channel = new BroadcastChannel('danmaku_channel_issues'); } catch(_) {}
 
             // ===== 本地存储 =====
             function loadLocalHistory() {
@@ -267,73 +275,76 @@
                 chatMessages.scrollTop = chatMessages.scrollHeight;
             }
 
-            // ===== 读取云端（增强版，带调试） =====
-            function loadFromCloud() {
-                fetch(BIN_URL, {
-                    headers: {
-                        'X-Bin-Meta': 'false'
-                    }
-                })
+            // ===== 从 Issue 评论加载历史 =====
+            function loadFromIssues() {
+                fetch(ISSUE_API, { headers: HEADERS })
                 .then(res => {
                     if (!res.ok) throw new Error(`HTTP ${res.status}`);
                     return res.json();
                 })
-                .then(data => {
-                    console.log('📥 云端返回数据:', data);
-                    let messages = null;
-                    if (data && data.record && Array.isArray(data.record.messages)) {
-                        messages = data.record.messages;
-                    } else if (data && Array.isArray(data.messages)) {
-                        messages = data.messages;
-                    } else if (Array.isArray(data)) {
-                        messages = data;
-                    }
-                    if (messages) {
-                        const localIds = new Set(chatMessagesData.map(m => m.id));
-                        let added = 0;
-                        for (const msg of messages) {
-                            if (!localIds.has(msg.id)) {
-                                msg.isOther = true;
-                                msg.isMe = false;
-                                chatMessagesData.push(msg);
-                                renderChatMessage(msg);
-                                renderDanmaku(msg.text, true);
-                                added++;
+                .then(comments => {
+                    const cloudMsgs = [];
+                    for (const comment of comments) {
+                        try {
+                            const data = JSON.parse(comment.body);
+                            if (data && data.text && data.name) {
+                                cloudMsgs.push({
+                                    id: comment.id,
+                                    text: data.text,
+                                    name: data.name || '陌生人',
+                                    avatar: data.avatar || '👤',
+                                    time: new Date(comment.created_at).getTime(),
+                                    isOther: true,
+                                    isMe: false
+                                });
                             }
+                        } catch(e) {}
+                    }
+                    const localIds = new Set(chatMessagesData.map(m => m.id));
+                    let added = 0;
+                    for (const msg of cloudMsgs) {
+                        if (!localIds.has(msg.id)) {
+                            chatMessagesData.push(msg);
+                            renderChatMessage(msg);
+                            renderDanmaku(msg.text, true);
+                            added++;
                         }
-                        if (added > 0) {
-                            saveLocalHistory(chatMessagesData);
-                            showToast(`✅ 同步了 ${added} 条新消息`, 2000);
-                        }
-                    } else {
-                        console.warn('⚠️ 未识别到消息数组，数据结构:', data);
+                    }
+                    if (added > 0) {
+                        saveLocalHistory(chatMessagesData);
+                        showToast(`✅ 同步了 ${added} 条新消息`, 2000);
                     }
                 })
                 .catch(err => {
-                    console.error('❌ 读取云端失败:', err);
+                    console.warn('读取 Issue 评论失败:', err);
                 });
             }
 
-            // ===== 写入云端 =====
-            function writeToCloud(data) {
-                return fetch(BIN_URL, {
-                    method: 'PUT',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-Bin-Meta': 'false'
-                    },
-                    body: JSON.stringify({ messages: data })
+            // ===== 写入 Issue 评论 =====
+            function writeToIssues(msgObj) {
+                const body = JSON.stringify({
+                    text: msgObj.text,
+                    name: msgObj.name,
+                    avatar: msgObj.avatar,
+                    time: msgObj.time
+                });
+                return fetch(ISSUE_API, {
+                    method: 'POST',
+                    headers: HEADERS,
+                    body: JSON.stringify({ body: body })
                 })
                 .then(res => {
                     if (!res.ok) throw new Error(`HTTP ${res.status}`);
                     return res.json();
                 })
-                .then(() => {
+                .then(comment => {
+                    msgObj.id = comment.id;
+                    saveLocalHistory(chatMessagesData);
                     showToast('✅ 消息已保存到云端', 1500);
                 })
                 .catch(err => {
-                    console.error('写入云端失败:', err);
-                    showToast('⚠️ 保存失败，请检查网络', 2000);
+                    console.error('写入 Issue 失败:', err);
+                    showToast('⚠️ 保存失败，请检查 Token', 2000);
                 });
             }
 
@@ -345,7 +356,7 @@
                 const name = senderName || (isOther ? '陌生人' : myName);
                 const avatar = senderAvatar || (isOther ? '👤' : myAvatar);
                 const isMe = !isOther;
-                const msgObj = { id: `${time}_${Math.random().toString(36).substr(2,4)}`, text, name, avatar, isOther, isMe, time };
+                const msgObj = { id: `temp_${Date.now()}_${Math.random().toString(36).substr(2,4)}`, text, name, avatar, isOther, isMe, time };
 
                 chatMessagesData.push(msgObj);
                 saveLocalHistory(chatMessagesData);
@@ -356,7 +367,7 @@
                 if (channel) { try { channel.postMessage({ type: 'new_message', data: msgObj }); } catch(_) {} }
 
                 if (isMe) {
-                    writeToCloud(chatMessagesData);
+                    writeToIssues(msgObj);
                 }
                 return true;
             }
@@ -519,15 +530,15 @@
 
             // ===== 初始化 =====
             function init() {
-                loadFromCloud();
+                loadFromIssues();
                 setBackgroundImage(DEFAULT_BG);
                 setTimeout(initStars, 50);
                 initAudio();
                 setTimeout(() => chatInput.focus(), 500);
                 setTimeout(showNameHint, 800);
-                setInterval(loadFromCloud, 5000);
-                console.log('🎯 纪念市杂谈 (jsonbin.io 公开版) 已启动，Bin ID: ' + BIN_ID);
-                showToast('💡 消息将同步到 jsonbin.io，跨设备可见', 3000);
+                setInterval(loadFromIssues, 10000);
+                console.log('🎯 纪念市杂谈 (Issues版) 已启动');
+                showToast('💡 消息将同步到 GitHub Issues，跨设备可见', 3000);
             }
 
             if (document.readyState === 'complete') { init(); } else { window.addEventListener('load', init); }
@@ -541,7 +552,6 @@
                     saveLocalHistory([]);
                     chatMessages.innerHTML = '';
                     showToast('🗑️ 本地历史已清空', 1200);
-                    writeToCloud([]);
                 },
                 music: { play: () => { if (audio) audio.play().catch(() => {}); }, pause: () => { if (audio) audio.pause(); }, toggle: togglePlay, loop: toggleLoop }
             };
