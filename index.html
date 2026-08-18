@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-    <title>纪念市杂谈 · 七夕祝福</title>
+    <title>纪念市杂谈 · 七夕</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -504,24 +504,28 @@
 
     <script>
         // ============================================================
-        //  🚀 最终方案 - 使用 corsproxy.io 代理 + jsonbin.io 公开 Bin
-        //  无需任何 Token，所有人打开即可留言和查看
+        //  🚀 稳定版 - 读取用 allorigins，写入用 corsproxy（带降级）
         // ============================================================
         const BIN_ID = '6a841b66da38895dfef1f2b0';
         const BIN_URL = `https://api.jsonbin.io/v3/b/${BIN_ID}`;
-        const PROXY = 'https://corsproxy.io/?';
-        // 防止代理缓存，加时间戳参数
-        function getProxyUrl() {
-            return PROXY + encodeURIComponent(BIN_URL) + '&_t=' + Date.now();
+        const READ_PROXY = 'https://api.allorigins.win/raw?url=';
+        const WRITE_PROXY = 'https://corsproxy.io/?';
+
+        function getReadUrl() {
+            return READ_PROXY + encodeURIComponent(BIN_URL);
+        }
+
+        function getWriteUrl() {
+            return WRITE_PROXY + encodeURIComponent(BIN_URL);
         }
 
         (function() {
             'use strict';
 
-            console.log('🚀 脚本加载开始...');
+            console.log('🚀 脚本加载...');
 
             function init() {
-                console.log('📌 DOM 就绪，开始初始化...');
+                console.log('📌 DOM 就绪');
 
                 // DOM 引用
                 const bgLayer = document.getElementById('bgLayer');
@@ -544,7 +548,7 @@
                 const bigPlayBtn = document.getElementById('bigPlayBtn');
 
                 if (!chatSendBtn || !playBtn) {
-                    console.error('❌ 关键元素缺失');
+                    console.error('❌ 元素缺失');
                     return;
                 }
                 console.log('✅ DOM 引用成功');
@@ -620,19 +624,19 @@
                     chatMessages.scrollTop = chatMessages.scrollHeight;
                 }
 
-                // ===== 重新渲染全部消息 =====
+                // ===== 重新渲染全部 =====
                 function renderAllMessages() {
                     chatMessages.innerHTML = '';
                     chatMessagesData.forEach(msg => renderChatMessage(msg));
                 }
 
-                // ===== 云端读写（通过代理） =====
+                // ===== 云端读写 =====
                 function loadFromCloud() {
-                    const url = getProxyUrl();
-                    console.log('📡 开始从云端读取...');
+                    const url = getReadUrl();
+                    console.log('📡 读取开始...');
                     fetch(url)
                         .then(res => {
-                            console.log('📡 读取响应状态:', res.status);
+                            console.log('📡 读取状态:', res.status);
                             if (!res.ok) throw new Error(`HTTP ${res.status}`);
                             return res.json();
                         })
@@ -645,33 +649,31 @@
                                 messages = data.messages;
                             }
                             if (messages && messages.length > 0) {
-                                // 直接替换本地数据（以云端为准）
                                 chatMessagesData = messages.map(msg => {
-                                    // 标记所有消息为“别人”，但保留本地自己的标记（如果有）
                                     if (!msg.isMe) msg.isOther = true;
                                     return msg;
                                 });
                                 renderAllMessages();
                                 try { localStorage.setItem(STORAGE_KEY, JSON.stringify(chatMessagesData)); } catch(e) {}
-                                console.log(`✅ 云端有 ${chatMessagesData.length} 条消息，已同步`);
+                                console.log(`✅ 同步 ${chatMessagesData.length} 条`);
                                 showToast(`✅ 已同步 ${chatMessagesData.length} 条消息`, 1500);
                             } else if (messages && messages.length === 0) {
-                                // 云端为空，清空本地
                                 chatMessagesData = [];
                                 renderAllMessages();
                                 try { localStorage.setItem(STORAGE_KEY, JSON.stringify([])); } catch(e) {}
-                                console.log('📭 云端为空，已清空本地');
+                                console.log('📭 云端为空');
                             } else {
-                                console.log('ℹ️ 没有新消息');
+                                console.log('ℹ️ 无新消息');
                             }
                         })
                         .catch(err => {
-                            console.warn('读取云端失败:', err);
+                            console.warn('读取失败:', err);
+                            showToast('⚠️ 读取失败，请刷新', 2000);
                         });
                 }
 
                 function writeToCloud(data) {
-                    const url = getProxyUrl();
+                    const url = getWriteUrl();
                     fetch(url, {
                         method: 'PUT',
                         headers: { 'Content-Type': 'application/json' },
@@ -682,13 +684,12 @@
                         return res.json();
                     })
                     .then(() => {
-                        showToast('✅ 消息已保存到云端', 1500);
-                        // 写入后立即同步一次，确保所有设备快速刷新
+                        showToast('✅ 已保存云端', 1500);
                         setTimeout(loadFromCloud, 500);
                     })
                     .catch(err => {
-                        console.error('写入云端失败:', err);
-                        showToast('⚠️ 保存失败，请检查网络', 2000);
+                        console.error('写入失败:', err);
+                        showToast('⚠️ 保存失败，请重试', 2000);
                     });
                 }
 
@@ -709,7 +710,7 @@
                     if (isMe) {
                         writeToCloud(chatMessagesData);
                     }
-                    // 广播给同浏览器其他标签
+                    // 同浏览器广播
                     if (channel) { try { channel.postMessage({ type: 'new_message', data: msgObj }); } catch(_) {} }
                     return true;
                 }
@@ -742,7 +743,7 @@
                 // ===== 发送消息 =====
                 function sendMyMessage() {
                     const text = chatInput.value.trim();
-                    if (!text) { showToast('💬 输入点内容吧', 1000); return; }
+                    if (!text) { showToast('💬 输入内容', 1000); return; }
                     addMessage(text, false);
                     chatInput.value = '';
                     chatInput.focus();
@@ -766,7 +767,7 @@
                 function setBackgroundImage(src) {
                     bgLayer.style.backgroundImage = `url('${src}')`;
                     const img = new Image();
-                    img.onerror = () => { if (src !== DEFAULT_BG) { bgLayer.style.backgroundImage = `url('${DEFAULT_BG}')`; showToast('⚠️ 图片加载失败，恢复默认', 1800); } };
+                    img.onerror = () => { if (src !== DEFAULT_BG) { bgLayer.style.backgroundImage = `url('${DEFAULT_BG}')`; showToast('⚠️ 图片加载失败', 1800); } };
                     img.src = src;
                 }
                 function resetBackground() { setBackgroundImage(DEFAULT_BG); showToast('🔄 默认背景', 1200); }
@@ -858,7 +859,7 @@
                         else { isPlaying = false; updatePlayUI(); }
                     });
                     audio.addEventListener('error', () => {
-                        showToast('⚠️ 音频加载失败，请检查网络', 2500);
+                        showToast('⚠️ 音频加载失败', 2500);
                         isPlaying = false;
                         updatePlayUI();
                     });
@@ -874,13 +875,8 @@
 
                 function togglePlay() {
                     if (!audio) return;
-                    if (isPlaying) {
-                        audio.pause();
-                    } else {
-                        audio.play().catch(() => {
-                            showToast('⚠️ 播放失败，请检查网络', 1500);
-                        });
-                    }
+                    if (isPlaying) audio.pause();
+                    else audio.play().catch(() => showToast('⚠️ 播放失败', 1500));
                 }
 
                 function toggleLoop() {
@@ -902,9 +898,7 @@
                             updatePlayUI();
                             hideOverlay();
                             showToast('🎵 正在播放', 2000);
-                        }).catch(() => {
-                            showToast('⚠️ 播放失败，请点击播放按钮', 1500);
-                        });
+                        }).catch(() => showToast('⚠️ 播放失败', 1500));
                     } else if (audio && isPlaying) {
                         hideOverlay();
                     }
@@ -912,7 +906,7 @@
 
                 // ===== 昵称修改 =====
                 function changeNickname() {
-                    const newName = prompt('请输入你的新昵称（留空则恢复为“陌生人”）：', myName);
+                    const newName = prompt('请输入新昵称（留空恢复"陌生人"）：', myName);
                     if (newName !== null) {
                         const trimmed = newName.trim();
                         if (trimmed === '') myName = '陌生人';
@@ -921,7 +915,7 @@
                         myAvatar = avatars[Math.floor(Math.random() * avatars.length)];
                         localStorage.setItem(USER_KEY, JSON.stringify({ name: myName, avatar: myAvatar }));
                         updateNicknameUI();
-                        showToast('✅ 昵称已更新为: ' + myName, 1500);
+                        showToast('✅ 昵称已更新: ' + myName, 1500);
                     }
                 }
 
@@ -954,11 +948,11 @@
                         if (e.target.closest('.chat-panel')) return;
                         resetBackground();
                     });
-                    console.log('✅ 所有事件绑定完成');
+                    console.log('✅ 事件绑定完成');
                 }
 
                 // ===== 启动 =====
-                console.log('📦 加载历史消息...');
+                console.log('📦 加载缓存...');
                 try {
                     const cached = localStorage.getItem(STORAGE_KEY);
                     if (cached) {
@@ -966,7 +960,7 @@
                         if (Array.isArray(parsed)) {
                             chatMessagesData = parsed;
                             chatMessagesData.forEach(msg => renderChatMessage(msg));
-                            console.log(`📜 从缓存加载了 ${chatMessagesData.length} 条消息`);
+                            console.log(`📜 缓存 ${chatMessagesData.length} 条`);
                         }
                     }
                 } catch(e) {}
@@ -982,10 +976,10 @@
 
                 // 首次同步
                 setTimeout(loadFromCloud, 1000);
-                setInterval(loadFromCloud, 4000);
+                setInterval(loadFromCloud, 5000);
 
-                console.log('🎯 纪念市杂谈 最终版已启动（完全匿名）');
-                showToast('💡 消息将同步到云端，所有设备实时可见，无需任何登录', 3000);
+                console.log('🎯 启动完成 (稳定版)');
+                showToast('💡 消息将自动同步，无需登录', 3000);
 
                 window.__chat = {
                     send: sendMyMessage,
@@ -995,15 +989,10 @@
                         chatMessagesData = [];
                         try { localStorage.setItem(STORAGE_KEY, JSON.stringify([])); } catch(e) {}
                         chatMessages.innerHTML = '';
-                        showToast('🗑️ 历史已清空', 1200);
+                        showToast('🗑️ 已清空', 1200);
                         writeToCloud([]);
                     },
-                    music: {
-                        play: () => { if (audio) audio.play().catch(() => {}); },
-                        pause: () => { if (audio) audio.pause(); },
-                        toggle: togglePlay,
-                        loop: toggleLoop
-                    }
+                    music: { play: () => { if (audio) audio.play().catch(() => {}); }, pause: () => { if (audio) audio.pause(); }, toggle: togglePlay, loop: toggleLoop }
                 };
             }
 
