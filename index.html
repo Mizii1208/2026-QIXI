@@ -18,6 +18,19 @@
             padding: 12px;
             margin: 0;
         }
+        /* 版本号水印（用于确认更新） */
+        #version-tag {
+            position: fixed;
+            top: 8px;
+            right: 12px;
+            color: rgba(255,255,255,0.15);
+            font-size: 12px;
+            z-index: 999;
+            pointer-events: none;
+            background: rgba(0,0,0,0.3);
+            padding: 2px 10px;
+            border-radius: 12px;
+        }
         /* ===== 星星画布 ===== */
         #starCanvas {
             position: fixed;
@@ -462,6 +475,9 @@
 </head>
 <body>
 
+    <!-- 版本号水印（用于确认更新） -->
+    <div id="version-tag">v2.0.1 · 有遮罩</div>
+
     <canvas id="starCanvas"></canvas>
 
     <div class="card" id="card">
@@ -523,12 +539,12 @@
 
     <script>
         // ============================================================
-        //  🚀 完整脚本 - 带音乐遮罩
+        //  🚀 完整脚本 - 带音乐遮罩，版本 v2.0.1
         // ============================================================
         (function() {
             'use strict';
 
-            console.log('🚀 脚本加载开始...');
+            console.log('🚀 脚本加载开始... (v2.0.1)');
 
             function init() {
                 console.log('📌 DOM 就绪，开始初始化...');
