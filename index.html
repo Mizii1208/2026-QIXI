@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <title>纪念市杂谈</title>
     <style>
+        /* 完整样式（与之前一致） */
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { min-height: 100vh; background: #0a0a1a; font-family: 'PingFang SC', 'Microsoft YaHei', 'Helvetica Neue', sans-serif; overflow: hidden; position: relative; display: flex; justify-content: center; align-items: center; padding: 12px; margin: 0; }
         #starCanvas { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; pointer-events: none; z-index: 0; }
@@ -266,19 +267,31 @@
                 chatMessages.scrollTop = chatMessages.scrollHeight;
             }
 
-            // ===== 读取云端 =====
+            // ===== 读取云端（增强版，带调试） =====
             function loadFromCloud() {
-                fetch(BIN_URL)
+                fetch(BIN_URL, {
+                    headers: {
+                        'X-Bin-Meta': 'false'
+                    }
+                })
                 .then(res => {
                     if (!res.ok) throw new Error(`HTTP ${res.status}`);
                     return res.json();
                 })
                 .then(data => {
-                    if (data && data.record && data.record.messages) {
-                        const cloudMsgs = data.record.messages;
+                    console.log('📥 云端返回数据:', data);
+                    let messages = null;
+                    if (data && data.record && Array.isArray(data.record.messages)) {
+                        messages = data.record.messages;
+                    } else if (data && Array.isArray(data.messages)) {
+                        messages = data.messages;
+                    } else if (Array.isArray(data)) {
+                        messages = data;
+                    }
+                    if (messages) {
                         const localIds = new Set(chatMessagesData.map(m => m.id));
                         let added = 0;
-                        for (const msg of cloudMsgs) {
+                        for (const msg of messages) {
                             if (!localIds.has(msg.id)) {
                                 msg.isOther = true;
                                 msg.isMe = false;
@@ -292,10 +305,12 @@
                             saveLocalHistory(chatMessagesData);
                             showToast(`✅ 同步了 ${added} 条新消息`, 2000);
                         }
+                    } else {
+                        console.warn('⚠️ 未识别到消息数组，数据结构:', data);
                     }
                 })
                 .catch(err => {
-                    console.warn('读取云端失败:', err);
+                    console.error('❌ 读取云端失败:', err);
                 });
             }
 
@@ -303,7 +318,10 @@
             function writeToCloud(data) {
                 return fetch(BIN_URL, {
                     method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Bin-Meta': 'false'
+                    },
                     body: JSON.stringify({ messages: data })
                 })
                 .then(res => {
