@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <title>纪念市杂谈</title>
     <style>
+        /* ===== 样式与之前完全一致 ===== */
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             min-height: 100vh;
@@ -275,7 +276,16 @@
         }
         .chat-header .nickname-area .avatar { font-size: 14px; }
         .chat-header .nickname-area .name { color: #fff; max-width: 60px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .chat-header .online-status { font-weight:400; font-size:10px; color:#2ecc71; display:flex; align-items:center; gap:3px; }
+        .chat-header .online-status {
+            font-weight:400;
+            font-size:10px;
+            color:#2ecc71;
+            display:flex;
+            align-items:center;
+            gap:3px;
+            cursor: pointer;
+        }
+        .chat-header .online-status:hover { opacity:0.8; }
         .chat-messages {
             flex: 1;
             overflow-y: auto;
@@ -488,8 +498,8 @@
                     <span class="name" id="myNameDisplay">陌生人</span>
                     <span class="edit-icon">✎</span>
                 </div>
-                <div class="online-status">
-                    <span class="dot-sm"></span> 实时
+                <div class="online-status" id="syncToggle" title="点击启用云端同步">
+                    <span class="dot-sm"></span> <span id="syncStatus">本地</span>
                 </div>
             </div>
             <div class="chat-messages" id="chatMessages"></div>
@@ -504,50 +514,48 @@
 
     <script>
         // ============================================================
-        //  🚀 最终方案 - 使用 GitHub Issues 作为留言板
-        //  用户首次输入自己的 GitHub Token（仅需 public_repo 权限）
-        //  之后 Token 保存在 localStorage 中
+        //  🚀 混合版：本地优先，Token 可选
+        //  无需 Token 即可听歌看图本地聊天
+        //  点击“同步”按钮输入 Token 后开启多设备同步
         // ============================================================
         const REPO_OWNER = 'Mizii1208';
         const REPO_NAME = '2026-QIXI';
-        const ISSUE_NUMBER = 1; // 您已创建的 Issue 编号
+        const ISSUE_NUMBER = 1;
+        const ISSUE_API = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/issues/${ISSUE_NUMBER}/comments`;
+        const TOKEN_KEY = 'github_token';
+        const STORAGE_KEY = 'chat_history_issues';
+        const USER_KEY = 'user_info_local';
+
+        // ===== Token 管理 =====
+        function getToken() {
+            return localStorage.getItem(TOKEN_KEY) || '';
+        }
+
+        function setToken(token) {
+            localStorage.setItem(TOKEN_KEY, token);
+        }
+
+        function hasToken() {
+            const t = getToken();
+            return t && t.length > 0;
+        }
+
+        // ===== 请求头 =====
+        function getHeaders() {
+            const token = getToken();
+            return {
+                'Content-Type': 'application/json',
+                'Authorization': `token ${token}`
+            };
+        }
 
         (function() {
             'use strict';
 
-            // ===== 获取或提示输入 Token =====
-            function getToken() {
-                let token = localStorage.getItem('github_token');
-                if (!token) {
-                    token = prompt('请输入您的 GitHub Token（仅需 public_repo 权限）：\n生成地址：https://github.com/settings/tokens');
-                    if (token) {
-                        localStorage.setItem('github_token', token);
-                    } else {
-                        alert('没有 Token 将无法同步消息，但您仍可本地查看。');
-                    }
-                }
-                return token;
-            }
-
-            const GITHUB_TOKEN = getToken();
-
-            // ===== 构建 Issue 评论 API 地址 =====
-            const ISSUE_API = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/issues/${ISSUE_NUMBER}/comments`;
-
-            function getHeaders() {
-                return {
-                    'Content-Type': 'application/json',
-                    'Authorization': `token ${GITHUB_TOKEN}`
-                };
-            }
-
-            // ============================================================
-            //  以下代码与之前相同，只修改读写部分使用 GitHub Issue
-            // ============================================================
-            console.log('🚀 脚本加载开始...');
+            console.log('🚀 脚本加载...');
 
             function init() {
-                console.log('📌 DOM 就绪，开始初始化...');
+                console.log('📌 DOM 就绪');
 
                 // DOM 引用
                 const bgLayer = document.getElementById('bgLayer');
@@ -568,9 +576,11 @@
                 const starCanvas = document.getElementById('starCanvas');
                 const musicOverlay = document.getElementById('musicOverlay');
                 const bigPlayBtn = document.getElementById('bigPlayBtn');
+                const syncToggle = document.getElementById('syncToggle');
+                const syncStatus = document.getElementById('syncStatus');
 
                 if (!chatSendBtn || !playBtn) {
-                    console.error('❌ 关键元素缺失');
+                    console.error('❌ 元素缺失');
                     return;
                 }
                 console.log('✅ DOM 引用成功');
@@ -579,8 +589,6 @@
                 const MUSIC_URL = 'https://cdn.jsdelivr.net/gh/Mizii1208/After-all/After%20All.mp3';
                 const MAX_DANMAKU = 80;
                 const MAX_HISTORY = 150;
-                const STORAGE_KEY = 'chat_history_issues';
-                const USER_KEY = 'user_info_local';
                 const DEFAULT_BG = 'https://cdn.jsdelivr.net/gh/Mizii1208/-2026-/446dc1f2599abf8cd4f69b60617b86ee.jpg';
                 const COLORS = ['#FFD700','#FFC107','#FFB300','#FDD835','#FFEE58','#FFF176','#9B59B6','#8E44AD','#A855F7','#7C3AED','#6D28D9','#9333EA'];
                 function getRandomColor() { return COLORS[Math.floor(Math.random() * COLORS.length)]; }
@@ -598,7 +606,23 @@
                 updateNicknameUI();
 
                 // ===== 本地缓存 =====
-                let chatMessagesData = [];
+                function loadLocalHistory() {
+                    try {
+                        const data = localStorage.getItem(STORAGE_KEY);
+                        if (data) {
+                            const msgs = JSON.parse(data);
+                            if (Array.isArray(msgs)) return msgs.slice(-MAX_HISTORY);
+                        }
+                    } catch(_) {}
+                    return [];
+                }
+                function saveLocalHistory(msgs) {
+                    try {
+                        const sliced = msgs.slice(-MAX_HISTORY);
+                        localStorage.setItem(STORAGE_KEY, JSON.stringify(sliced));
+                    } catch(_) {}
+                }
+                let chatMessagesData = loadLocalHistory();
 
                 // ===== 弹幕管理 =====
                 let danmakuCount = 0;
@@ -646,9 +670,15 @@
                     chatMessages.scrollTop = chatMessages.scrollHeight;
                 }
 
+                // ===== 重新渲染全部 =====
+                function renderAllMessages() {
+                    chatMessages.innerHTML = '';
+                    chatMessagesData.forEach(msg => renderChatMessage(msg));
+                }
+
                 // ===== 云端读写（GitHub Issues） =====
                 function loadFromCloud() {
-                    if (!GITHUB_TOKEN) return;
+                    if (!hasToken()) return;
                     fetch(ISSUE_API, { headers: getHeaders() })
                         .then(res => {
                             if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -673,6 +703,7 @@
                                     }
                                 } catch(e) {}
                             }
+                            // 合并去重
                             const localIds = new Set(chatMessagesData.map(m => m.id));
                             let added = 0;
                             for (const msg of cloudMsgs) {
@@ -684,25 +715,22 @@
                                 }
                             }
                             if (added > 0) {
-                                try { localStorage.setItem(STORAGE_KEY, JSON.stringify(chatMessagesData)); } catch(e) {}
-                                showToast(`✅ 同步了 ${added} 条新消息`, 2000);
+                                saveLocalHistory(chatMessagesData);
+                                showToast(`✅ 同步了 ${added} 条云端消息`, 2000);
                             }
                         })
-                        .catch(err => console.warn('读取 Issues 失败:', err));
+                        .catch(err => console.warn('读取云端失败:', err));
                 }
 
                 function writeToCloud(msgObj) {
-                    if (!GITHUB_TOKEN) {
-                        showToast('⚠️ 未设置 Token，消息仅保存在本地', 2000);
-                        return;
-                    }
+                    if (!hasToken()) return Promise.resolve();
                     const body = JSON.stringify({
                         text: msgObj.text,
                         name: msgObj.name,
                         avatar: msgObj.avatar,
                         time: msgObj.time
                     });
-                    fetch(ISSUE_API, {
+                    return fetch(ISSUE_API, {
                         method: 'POST',
                         headers: getHeaders(),
                         body: JSON.stringify({ body: body })
@@ -713,12 +741,12 @@
                     })
                     .then(comment => {
                         msgObj.id = comment.id;
-                        try { localStorage.setItem(STORAGE_KEY, JSON.stringify(chatMessagesData)); } catch(e) {}
-                        showToast('✅ 消息已保存到云端', 1500);
+                        saveLocalHistory(chatMessagesData);
+                        showToast('✅ 消息已同步到云端', 1500);
                     })
                     .catch(err => {
-                        console.error('写入 Issue 失败:', err);
-                        showToast('⚠️ 保存失败，请检查 Token 或网络', 2000);
+                        console.error('写入云端失败:', err);
+                        showToast('⚠️ 同步失败，请检查 Token 或网络', 2000);
                     });
                 }
 
@@ -730,14 +758,19 @@
                     const name = senderName || (isOther ? '陌生人' : myName);
                     const avatar = senderAvatar || (isOther ? '👤' : myAvatar);
                     const isMe = !isOther;
+                    // 临时 ID，若有云端 ID 则替换
                     const msgObj = { id: `temp_${Date.now()}_${Math.random().toString(36).substr(2,4)}`, text, name, avatar, isOther, isMe, time };
                     chatMessagesData.push(msgObj);
                     renderChatMessage(msgObj);
                     if (isMe) renderDanmaku(text, false);
                     else renderDanmaku(text, true);
-                    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(chatMessagesData)); } catch(e) {}
-                    if (isMe) {
-                        writeToCloud(msgObj);
+                    saveLocalHistory(chatMessagesData);
+                    // 如果有 Token 且是自己的消息，尝试同步到云端
+                    if (isMe && hasToken()) {
+                        writeToCloud(msgObj).then(() => {
+                            // 如果写入成功，msgObj.id 已被替换为 comment.id，保存一下
+                            saveLocalHistory(chatMessagesData);
+                        });
                     }
                     // 广播给同浏览器其他标签
                     if (channel) { try { channel.postMessage({ type: 'new_message', data: msgObj }); } catch(_) {} }
@@ -759,7 +792,7 @@
                                 chatMessagesData.push(msg);
                                 renderChatMessage(msg);
                                 renderDanmaku(msg.text, true);
-                                try { localStorage.setItem(STORAGE_KEY, JSON.stringify(chatMessagesData)); } catch(e) {}
+                                saveLocalHistory(chatMessagesData);
                             }
                         } else if (data.type === 'music_toggle') {
                             if (audio && data.action === 'play') { audio.play().catch(() => {}); }
@@ -772,7 +805,7 @@
                 // ===== 发送消息 =====
                 function sendMyMessage() {
                     const text = chatInput.value.trim();
-                    if (!text) { showToast('💬 输入点内容吧', 1000); return; }
+                    if (!text) { showToast('💬 输入内容', 1000); return; }
                     addMessage(text, false);
                     chatInput.value = '';
                     chatInput.focus();
@@ -796,7 +829,7 @@
                 function setBackgroundImage(src) {
                     bgLayer.style.backgroundImage = `url('${src}')`;
                     const img = new Image();
-                    img.onerror = () => { if (src !== DEFAULT_BG) { bgLayer.style.backgroundImage = `url('${DEFAULT_BG}')`; showToast('⚠️ 图片加载失败，恢复默认', 1800); } };
+                    img.onerror = () => { if (src !== DEFAULT_BG) { bgLayer.style.backgroundImage = `url('${DEFAULT_BG}')`; showToast('⚠️ 图片加载失败', 1800); } };
                     img.src = src;
                 }
                 function resetBackground() { setBackgroundImage(DEFAULT_BG); showToast('🔄 默认背景', 1200); }
@@ -888,7 +921,7 @@
                         else { isPlaying = false; updatePlayUI(); }
                     });
                     audio.addEventListener('error', () => {
-                        showToast('⚠️ 音频加载失败，请检查网络', 2500);
+                        showToast('⚠️ 音频加载失败', 2500);
                         isPlaying = false;
                         updatePlayUI();
                     });
@@ -904,13 +937,8 @@
 
                 function togglePlay() {
                     if (!audio) return;
-                    if (isPlaying) {
-                        audio.pause();
-                    } else {
-                        audio.play().catch(() => {
-                            showToast('⚠️ 播放失败，请检查网络', 1500);
-                        });
-                    }
+                    if (isPlaying) audio.pause();
+                    else audio.play().catch(() => showToast('⚠️ 播放失败', 1500));
                 }
 
                 function toggleLoop() {
@@ -932,9 +960,7 @@
                             updatePlayUI();
                             hideOverlay();
                             showToast('🎵 正在播放', 2000);
-                        }).catch(() => {
-                            showToast('⚠️ 播放失败，请点击播放按钮', 1500);
-                        });
+                        }).catch(() => showToast('⚠️ 播放失败', 1500));
                     } else if (audio && isPlaying) {
                         hideOverlay();
                     }
@@ -942,7 +968,7 @@
 
                 // ===== 昵称修改 =====
                 function changeNickname() {
-                    const newName = prompt('请输入你的新昵称（留空则恢复为“陌生人”）：', myName);
+                    const newName = prompt('请输入新昵称（留空恢复"陌生人"）：', myName);
                     if (newName !== null) {
                         const trimmed = newName.trim();
                         if (trimmed === '') myName = '陌生人';
@@ -951,11 +977,54 @@
                         myAvatar = avatars[Math.floor(Math.random() * avatars.length)];
                         localStorage.setItem(USER_KEY, JSON.stringify({ name: myName, avatar: myAvatar }));
                         updateNicknameUI();
-                        showToast('✅ 昵称已更新为: ' + myName, 1500);
+                        showToast('✅ 昵称已更新: ' + myName, 1500);
                     }
                 }
 
                 function showNameHint() { nameHint.classList.add('show'); setTimeout(() => { nameHint.classList.remove('show'); }, 5500); }
+
+                // ===== 同步状态管理 =====
+                function updateSyncStatusUI() {
+                    if (hasToken()) {
+                        syncStatus.textContent = '同步中';
+                        syncStatus.style.color = '#2ecc71';
+                    } else {
+                        syncStatus.textContent = '本地';
+                        syncStatus.style.color = '#888';
+                    }
+                }
+
+                function enableSync() {
+                    // 如果已有 Token，直接提示
+                    if (hasToken()) {
+                        showToast('✅ 已启用同步', 1500);
+                        return;
+                    }
+                    const token = prompt('请输入您的 GitHub Token（仅需 public_repo 权限）：\n生成地址：https://github.com/settings/tokens');
+                    if (token && token.trim()) {
+                        setToken(token.trim());
+                        updateSyncStatusUI();
+                        showToast('✅ Token 已保存，正在同步...', 2000);
+                        // 立即同步
+                        setTimeout(loadFromCloud, 500);
+                        // 开启定时轮询
+                        if (window._syncInterval) clearInterval(window._syncInterval);
+                        window._syncInterval = setInterval(loadFromCloud, 8000);
+                        // 将本地所有消息上传到云端（去重）
+                        const pendingMsgs = chatMessagesData.filter(m => m.id && m.id.toString().startsWith('temp_'));
+                        if (pendingMsgs.length > 0) {
+                            showToast(`📤 正在上传 ${pendingMsgs.length} 条本地消息...`, 2000);
+                            pendingMsgs.forEach(msg => {
+                                writeToCloud(msg).then(() => {
+                                    // 更新本地存储中的 id
+                                    saveLocalHistory(chatMessagesData);
+                                });
+                            });
+                        }
+                    } else {
+                        showToast('⚠️ Token 无效，未启用同步', 1500);
+                    }
+                }
 
                 // ===== 绑定事件 =====
                 function bindEvents() {
@@ -974,6 +1043,9 @@
                     bigPlayBtn.addEventListener('click', startFromOverlay);
                     musicOverlay.addEventListener('click', startFromOverlay);
 
+                    // 点击“实时”/“本地”文字开启同步
+                    syncToggle.addEventListener('click', enableSync);
+
                     const stageEl = document.getElementById('stage');
                     stageEl.addEventListener('dblclick', (e) => {
                         if (e.target.closest('.chat-panel')) return;
@@ -984,22 +1056,13 @@
                         if (e.target.closest('.chat-panel')) return;
                         resetBackground();
                     });
-                    console.log('✅ 所有事件绑定完成');
+                    console.log('✅ 事件绑定完成');
                 }
 
                 // ===== 启动 =====
-                console.log('📦 加载历史消息...');
-                try {
-                    const cached = localStorage.getItem(STORAGE_KEY);
-                    if (cached) {
-                        const parsed = JSON.parse(cached);
-                        if (Array.isArray(parsed)) {
-                            chatMessagesData = parsed;
-                            chatMessagesData.forEach(msg => renderChatMessage(msg));
-                            console.log(`📜 从缓存加载了 ${chatMessagesData.length} 条消息`);
-                        }
-                    }
-                } catch(e) {}
+                console.log('📦 加载缓存...');
+                chatMessagesData.forEach(msg => renderChatMessage(msg));
+                console.log(`📜 缓存 ${chatMessagesData.length} 条`);
 
                 setBackgroundImage(DEFAULT_BG);
                 setTimeout(initStars, 50);
@@ -1010,16 +1073,19 @@
 
                 bindEvents();
 
-                // 首次同步
-                if (GITHUB_TOKEN) {
-                    setTimeout(loadFromCloud, 1000);
-                    setInterval(loadFromCloud, 5000);
+                // 更新同步状态
+                updateSyncStatusUI();
+
+                // 如果已有 Token，开启定时同步
+                if (hasToken()) {
+                    setTimeout(loadFromCloud, 1500);
+                    window._syncInterval = setInterval(loadFromCloud, 8000);
+                    showToast('💡 已启用云端同步', 3000);
                 } else {
-                    showToast('💡 未设置 Token，消息仅保存在本地', 3000);
+                    showToast('💡 点击“本地”可启用云端同步', 3000);
                 }
 
-                console.log('🎯 纪念市杂谈 最终版已启动');
-                showToast('💡 消息将同步到 GitHub Issues，所有设备实时可见', 3000);
+                console.log('🎯 启动完成 (混合版)');
 
                 window.__chat = {
                     send: sendMyMessage,
@@ -1027,16 +1093,12 @@
                     history: () => chatMessagesData,
                     clearHistory: () => {
                         chatMessagesData = [];
-                        try { localStorage.setItem(STORAGE_KEY, JSON.stringify([])); } catch(e) {}
+                        saveLocalHistory([]);
                         chatMessages.innerHTML = '';
-                        showToast('🗑️ 历史已清空', 1200);
+                        showToast('🗑️ 已清空', 1200);
                     },
-                    music: {
-                        play: () => { if (audio) audio.play().catch(() => {}); },
-                        pause: () => { if (audio) audio.pause(); },
-                        toggle: togglePlay,
-                        loop: toggleLoop
-                    }
+                    enableSync: enableSync,
+                    music: { play: () => { if (audio) audio.play().catch(() => {}); }, pause: () => { if (audio) audio.pause(); }, toggle: togglePlay, loop: toggleLoop }
                 };
             }
 
