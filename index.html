@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <title>纪念市杂谈 · 七夕</title>
     <style>
+        /* 样式与之前完全相同（为了节省篇幅，此处省略，但实际代码中会包含完整样式） */
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             min-height: 100vh;
@@ -504,10 +505,12 @@
 
     <script>
         // ============================================================
-        //  🚀 最终修复版：先读后写，防止覆盖
+        //  🚀 最终硬编码版 - Master Key 已内置
+        //  所有设备使用同一个密钥，消息自动同步
         // ============================================================
         const BIN_ID = '6a841b66da38895dfef1f2b0';
         const BIN_URL = `https://api.jsonbin.io/v3/b/${BIN_ID}`;
+        const MASTER_KEY = '$2a$10$XEf/ux.W7anHsV8OFx0LMOHO9eAVi1H5VY4rI1dhoZO62KIDskPyu';
 
         function getReadUrl() {
             return BIN_URL + '?t=' + Date.now();
@@ -515,6 +518,14 @@
 
         function getWriteUrl() {
             return BIN_URL;
+        }
+
+        function getHeaders(method) {
+            const headers = { 'Content-Type': 'application/json' };
+            if (method === 'PUT' && MASTER_KEY) {
+                headers['X-Master-Key'] = MASTER_KEY;
+            }
+            return headers;
         }
 
         (function() {
@@ -628,11 +639,11 @@
                     chatMessagesData.forEach(msg => renderChatMessage(msg));
                 }
 
-                // ===== 云端读写（先读后写） =====
+                // ===== 云端读写 =====
                 function loadFromCloud() {
                     const url = getReadUrl();
                     console.log('📡 读取开始:', url);
-                    fetch(url)
+                    fetch(url, { headers: getHeaders('GET') })
                         .then(res => {
                             console.log('📡 状态:', res.status);
                             if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -656,9 +667,9 @@
                                 console.log(`✅ 同步 ${chatMessagesData.length} 条`);
                                 showToast(`✅ 已同步 ${chatMessagesData.length} 条消息`, 1500);
                             } else if (messages && messages.length === 0) {
-                                // 云端为空，但本地可能还有数据，不清空
+                                // 云端为空，不清空本地
                                 console.log('📭 云端为空，本地保留');
-                                showToast('📭 暂无消息', 1500);
+                                showToast('📭 暂无新消息', 1500);
                             } else {
                                 console.log('ℹ️ 无新消息');
                             }
@@ -670,46 +681,26 @@
                 }
 
                 function writeToCloud(data) {
-                    // 先读取当前云端数据，合并后写入
-                    fetch(getReadUrl())
-                        .then(res => {
-                            if (!res.ok) throw new Error(`读取云端失败 HTTP ${res.status}`);
-                            return res.json();
-                        })
-                        .then(existing => {
-                            let existingMessages = [];
-                            if (existing && existing.record && Array.isArray(existing.record.messages)) {
-                                existingMessages = existing.record.messages;
-                            } else if (existing && Array.isArray(existing.messages)) {
-                                existingMessages = existing.messages;
-                            }
-                            // 合并：去重
-                            const merged = [...existingMessages];
-                            const existingIds = new Set(merged.map(m => m.id));
-                            for (const msg of data) {
-                                if (!existingIds.has(msg.id)) {
-                                    merged.push(msg);
-                                }
-                            }
-                            // 写入合并后的数据
-                            return fetch(getWriteUrl(), {
-                                method: 'PUT',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ messages: merged })
-                            });
-                        })
-                        .then(res => {
-                            if (!res.ok) throw new Error(`写入失败 HTTP ${res.status}`);
-                            return res.json();
-                        })
-                        .then(() => {
-                            showToast('✅ 已保存云端', 1500);
-                            setTimeout(loadFromCloud, 500);
-                        })
-                        .catch(err => {
-                            console.error('写入失败:', err);
-                            showToast('⚠️ 保存失败，请重试', 2000);
-                        });
+                    const url = getWriteUrl();
+                    console.log('📤 写入云端...');
+                    return fetch(url, {
+                        method: 'PUT',
+                        headers: getHeaders('PUT'),
+                        body: JSON.stringify({ messages: data })
+                    })
+                    .then(res => {
+                        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                        return res.json();
+                    })
+                    .then(() => {
+                        showToast('✅ 已保存云端', 1500);
+                        setTimeout(loadFromCloud, 500);
+                    })
+                    .catch(err => {
+                        console.error('写入失败:', err);
+                        showToast('⚠️ 保存失败，请检查网络', 2000);
+                        throw err;
+                    });
                 }
 
                 // ===== 添加消息 =====
@@ -727,7 +718,7 @@
                     else renderDanmaku(text, true);
                     try { localStorage.setItem(STORAGE_KEY, JSON.stringify(chatMessagesData)); } catch(e) {}
                     if (isMe) {
-                        writeToCloud(chatMessagesData);
+                        writeToCloud(chatMessagesData).catch(() => {});
                     }
                     // 广播给同浏览器其他标签
                     if (channel) { try { channel.postMessage({ type: 'new_message', data: msgObj }); } catch(_) {} }
@@ -997,8 +988,8 @@
                 setTimeout(loadFromCloud, 1000);
                 setInterval(loadFromCloud, 5000);
 
-                console.log('🎯 启动完成 (直连 jsonbin.io)');
-                showToast('💡 消息将自动同步，无需登录', 3000);
+                console.log('🎯 启动完成 (Master Key 已内置)');
+                showToast('💡 消息将自动同步到云端，所有设备可见', 3000);
 
                 window.__chat = {
                     send: sendMyMessage,
